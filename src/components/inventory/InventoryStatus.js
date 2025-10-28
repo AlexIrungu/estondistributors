@@ -1,3 +1,4 @@
+'use client'
 import { useState, useEffect } from 'react';
 import { Package, MapPin, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react';
 import { getFuelInventory, formatQuantity } from '@/lib/db/inventoryStorage';
