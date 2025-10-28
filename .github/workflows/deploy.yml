@@ -43,15 +43,38 @@ jobs:
             ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          echo "✓ Dependencies installed"
+          echo "Node version:"
+          node --version
+          echo "NPM version:"
+          npm --version
 
       - name: Build with Next.js
-        run: npm run build
+        run: |
+          echo "Building Next.js application..."
+          echo "Next.js config:"
+          cat next.config.mjs
+          npm run build
         env:
           NODE_ENV: production
 
-      - name: Add .nojekyll file
-        run: touch ./out/.nojekyll
+      - name: Verify and prepare output
+        run: |
+          if [ -d "./out" ]; then
+            echo "✓ out directory exists"
+            ls -la ./out
+            touch ./out/.nojekyll
+            echo "✓ .nojekyll file created"
+          else
+            echo "✗ out directory not found!"
+            echo "Root directory contents:"
+            ls -la
+            echo "Checking .next directory:"
+            ls -la .next 2>/dev/null || echo ".next not found"
+            exit 1
+          fi
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

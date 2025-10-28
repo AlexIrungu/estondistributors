@@ -2,6 +2,7 @@
 const nextConfig = {
   reactCompiler: true,
   output: 'export',
+  distDir: '.next',
   images: {
     unoptimized: true,
     remotePatterns: [
