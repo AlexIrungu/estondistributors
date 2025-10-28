@@ -40,19 +40,19 @@ export default function ContactPage() {
       icon: <MessageSquare className="h-8 w-8" />,
       title: 'General Inquiries',
       description: 'Questions about our products or services',
-      email: 'info@eston.co.ke',
+      email: 'estonkd@gmail.com',
     },
     {
       icon: <Phone className="h-8 w-8" />,
       title: 'Sales & Quotes',
       description: 'Request pricing for bulk orders',
-      email: 'sales@eston.co.ke',
+      email: 'estonkd@gmail.com',
     },
     {
       icon: <Headphones className="h-8 w-8" />,
       title: 'Customer Support',
       description: 'Help with existing orders',
-      email: 'support@eston.co.ke',
+      email: 'estonkd@gmail.com',
     },
   ];
 

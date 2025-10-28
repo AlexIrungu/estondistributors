@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import emailjs from '@emailjs/browser';
 
 const contactSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -31,21 +32,65 @@ export default function ContactForm() {
     setSubmitStatus(null);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      
-      console.log('Form data:', data);
+      // EmailJS configuration
+      const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
+      const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
+      const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
+
+      // Debug: Check if environment variables are loaded
+      console.log('Environment Check:', {
+        serviceId: serviceId ? '✓ Loaded' : '✗ Missing',
+        templateId: templateId ? '✓ Loaded' : '✗ Missing',
+        publicKey: publicKey ? '✓ Loaded' : '✗ Missing',
+      });
+
+      // Validate environment variables
+      if (!serviceId || !templateId || !publicKey) {
+        throw new Error('EmailJS configuration is missing. Please check your .env.local file and restart the development server.');
+      }
+
+      // Template parameters matching your EmailJS template
+      const templateParams = {
+        from_name: data.name,
+        from_email: data.email,
+        phone: data.phone,
+        subject: data.subject,
+        message: data.message,
+        to_email: 'estonkd@gmail.com', // Your receiving email
+      };
+
+      // Send email using EmailJS
+      const response = await emailjs.send(
+        serviceId,
+        templateId,
+        templateParams,
+        publicKey
+      );
+
+      console.log('Email sent successfully:', response);
       setSubmitStatus('success');
       reset();
+      
+      // Auto-hide success message after 5 seconds
+      setTimeout(() => {
+        setSubmitStatus(null);
+      }, 5000);
+      
     } catch (error) {
+      console.error('Email sending failed:', error);
       setSubmitStatus('error');
+      
+      // Auto-hide error message after 5 seconds
+      setTimeout(() => {
+        setSubmitStatus(null);
+      }, 5000);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" id="contact-form">
       {/* Name Field */}
       <div>
         <label htmlFor="name" className="block text-sm font-medium text-neutral-700 mb-2">
@@ -57,6 +102,7 @@ export default function ContactForm() {
           id="name"
           className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
           placeholder="John Doe"
+          disabled={isSubmitting}
         />
         {errors.name && (
           <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
@@ -74,6 +120,7 @@ export default function ContactForm() {
           id="email"
           className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
           placeholder="john@example.com"
+          disabled={isSubmitting}
         />
         {errors.email && (
           <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
@@ -91,6 +138,7 @@ export default function ContactForm() {
           id="phone"
           className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
           placeholder="+254 XXX XXX XXX"
+          disabled={isSubmitting}
         />
         {errors.phone && (
           <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>
@@ -108,6 +156,7 @@ export default function ContactForm() {
           id="subject"
           className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
           placeholder="Bulk order inquiry"
+          disabled={isSubmitting}
         />
         {errors.subject && (
           <p className="mt-1 text-sm text-red-600">{errors.subject.message}</p>
@@ -125,6 +174,7 @@ export default function ContactForm() {
           rows={5}
           className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all resize-none"
           placeholder="Tell us about your requirements..."
+          disabled={isSubmitting}
         />
         {errors.message && (
           <p className="mt-1 text-sm text-red-600">{errors.message.message}</p>
@@ -135,21 +185,43 @@ export default function ContactForm() {
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full bg-primary-500 text-white py-3 px-6 rounded-lg font-semibold hover:bg-primary-600 disabled:bg-neutral-400 disabled:cursor-not-allowed transition-colors"
+        className="w-full bg-primary-500 text-white py-3 px-6 rounded-lg font-semibold hover:bg-primary-600 disabled:bg-neutral-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
       >
-        {isSubmitting ? 'Sending...' : 'Send Message'}
+        {isSubmitting ? (
+          <>
+            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Sending...
+          </>
+        ) : (
+          'Send Message'
+        )}
       </button>
 
       {/* Status Messages */}
       {submitStatus === 'success' && (
-        <div className="bg-green-50 text-green-800 p-4 rounded-lg">
-          Thank you! Your message has been sent successfully. We'll get back to you soon.
+        <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg flex items-start gap-3">
+          <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+          <div>
+            <p className="font-semibold">Message sent successfully!</p>
+            <p className="text-sm mt-1">Thank you for contacting us. We'll get back to you within 24 hours.</p>
+          </div>
         </div>
       )}
 
       {submitStatus === 'error' && (
-        <div className="bg-red-50 text-red-800 p-4 rounded-lg">
-          Oops! Something went wrong. Please try again later.
+        <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg flex items-start gap-3">
+          <svg className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+          </svg>
+          <div>
+            <p className="font-semibold">Failed to send message</p>
+            <p className="text-sm mt-1">Please try again or contact us directly at estonkd@gmail.com</p>
+          </div>
         </div>
       )}
     </form>
