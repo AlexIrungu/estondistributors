@@ -2,7 +2,7 @@
 const nextConfig = {
   reactCompiler: true,
   output: 'export',
-  distDir: '.next',
+  // Remove this line: distDir: '.next',
   images: {
     unoptimized: true,
     remotePatterns: [
@@ -14,7 +14,7 @@ const nextConfig = {
   },
   trailingSlash: true,
   basePath: process.env.NODE_ENV === 'production' ? '/estondistributors' : '',
-  assetPrefix: process.env.NODE_ENV === 'production' ? '/estondistributors/' : '',
+  assetPrefix: process.env.NODE_ENV === 'production' ? '/estondistributors' : '',
 };
 
 export default nextConfig;
