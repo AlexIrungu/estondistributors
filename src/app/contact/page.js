@@ -295,7 +295,7 @@ export default function ContactPage() {
               Our 24/7 emergency hotline is always available for urgent fuel delivery needs. Quick response guaranteed.
             </p>
             <a
-              href="tel:+254XXXXXXXXX"
+              href="tel:+254722943291"
               className="inline-flex items-center gap-3 bg-white text-accent-600 px-10 py-5 rounded-xl text-xl font-bold hover:bg-neutral-100 hover:scale-105 transition-all duration-300 shadow-2xl"
             >
               <Phone className="h-6 w-6" />
