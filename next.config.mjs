@@ -2,7 +2,6 @@
 const isProduction = process.env.NODE_ENV === 'production';
 
 const nextConfig = {
-  reactCompiler: true,
   output: 'export',
   distDir: 'out',
   images: {
@@ -17,6 +16,7 @@ const nextConfig = {
   trailingSlash: true,
   basePath: isProduction ? '/estondistributors' : '',
   assetPrefix: isProduction ? '/estondistributors/' : '',
+  // Remove the experimental section if it exists
 };
 
 export default nextConfig;
