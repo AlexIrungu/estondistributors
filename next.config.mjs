@@ -8,11 +8,10 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'images.unsplash.com',
-        port: '',
-        pathname: '/**',
       },
     ],
   },
+  trailingSlash: true,
   basePath: process.env.NODE_ENV === 'production' ? '/estondistributors' : '',
   assetPrefix: process.env.NODE_ENV === 'production' ? '/estondistributors/' : '',
 };
