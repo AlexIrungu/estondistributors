@@ -1,7 +1,10 @@
 /** @type {import('next').NextConfig} */
+const isProduction = process.env.NODE_ENV === 'production';
+
 const nextConfig = {
   reactCompiler: true,
   output: 'export',
+  distDir: 'out',
   images: {
     unoptimized: true,
     remotePatterns: [
@@ -12,8 +15,8 @@ const nextConfig = {
     ],
   },
   trailingSlash: true,
-  basePath: '/estondistributors',
-  assetPrefix: '/estondistributors/',
+  basePath: isProduction ? '/estondistributors' : '',
+  assetPrefix: isProduction ? '/estondistributors/' : '',
 };
 
 export default nextConfig;
