@@ -12,8 +12,8 @@ const nextConfig = {
     ],
   },
   trailingSlash: true,
-  basePath: process.env.NODE_ENV === 'production' ? '/estondistributors' : '',
-  assetPrefix: process.env.NODE_ENV === 'production' ? '/estondistributors' : '',
+  basePath: '/estondistributors',
+  assetPrefix: '/estondistributors/',
 };
 
 export default nextConfig;
