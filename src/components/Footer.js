@@ -60,11 +60,11 @@ export default function Footer() {
             <ul className="space-y-3">
               <li className="flex items-center gap-2 text-neutral-300">
                 <Phone size={18} className="text-primary-400" />
-                <span>+254 XXX XXX XXX</span>
+                <span>+254 722 943 291</span>
               </li>
               <li className="flex items-center gap-2 text-neutral-300">
                 <Mail size={18} className="text-primary-400" />
-                <span>info@eston.co.ke</span>
+                <span>estonkd@gmail.com</span>
               </li>
               <li className="flex items-start gap-2 text-neutral-300">
                 <MapPin size={18} className="text-primary-400 mt-1" />

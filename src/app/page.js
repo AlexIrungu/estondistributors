@@ -7,7 +7,7 @@ export default function Home() {
     {
       name: 'Petrol/Gasoline',
       description: 'High-quality unleaded petrol for all vehicles',
-      image: 'https://images.unsplash.com/photo-1545262722-c8fbe9012f57?w=800&q=80',
+      image: 'https://plus.unsplash.com/premium_photo-1692299320441-f670e6c82ed8?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTd8fHBldHJvbHxlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&q=60&w=500',
       icon: '⛽',
     },
     {
@@ -57,12 +57,6 @@ export default function Home() {
     },
   ];
 
-  const stats = [
-    { value: '10+', label: 'Years Experience' },
-    { value: '500+', label: 'Happy Clients' },
-    { value: '24/7', label: 'Support Available' },
-    { value: '100%', label: 'Quality Guaranteed' },
-  ];
 
   return (
     <div>
@@ -116,21 +110,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-12 bg-white">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat) => (
-              <div key={stat.label} className="text-center">
-                <div className="text-4xl md:text-5xl font-bold text-primary-500 mb-2">
-                  {stat.value}
-                </div>
-                <div className="text-neutral-600 font-medium">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+     
 
       {/* Products Section */}
       <section className="py-20 bg-neutral-50">
@@ -197,7 +177,7 @@ export default function Home() {
             </div>
             <div>
               <h2 className="text-3xl md:text-5xl font-bold text-secondary-900 mb-6">
-                Why Choose Eston?
+                Why Choose Eston Distributors
               </h2>
               <p className="text-lg text-neutral-600 mb-8">
                 With over a decade of experience in petroleum distribution, we've built our reputation on reliability, quality, and exceptional service. Our commitment to excellence has made us a trusted partner for businesses across Kenya.

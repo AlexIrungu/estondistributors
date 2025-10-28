@@ -8,21 +8,21 @@ export default function ContactPage() {
     {
       icon: <Phone className="h-6 w-6" />,
       title: 'Phone',
-      details: ['+254 XXX XXX XXX', '+254 YYY YYY YYY'],
-      action: 'tel:+254XXXXXXXXX',
+      details: ['+254 722 943 291'],
+      action: 'tel:+254722943291',
       actionText: 'Call Now',
     },
     {
       icon: <Mail className="h-6 w-6" />,
       title: 'Email',
-      details: ['info@eston.co.ke', 'sales@eston.co.ke'],
-      action: 'mailto:info@eston.co.ke',
+      details: ['estonkd@gmail.com'],
+      action: 'mailto:estonkd@gmail.com',
       actionText: 'Send Email',
     },
     {
       icon: <MapPin className="h-6 w-6" />,
       title: 'Address',
-      details: ['Nairobi, Kenya', 'P.O. Box XXXXX-00100'],
+      details: ['Nairobi, Kenya', 'P.O. Box 343-00100'],
       action: '#map',
       actionText: 'View Map',
     },
@@ -253,7 +253,7 @@ export default function ContactPage() {
               
               <div className="flex flex-wrap gap-4">
                 <a
-                  href="tel:+254XXXXXXXXX"
+                  href="tel:+254722943291"
                   className="inline-flex items-center gap-2 bg-primary-500 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-primary-600 hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
                 >
                   <Phone className="h-5 w-5" />
@@ -299,7 +299,7 @@ export default function ContactPage() {
               className="inline-flex items-center gap-3 bg-white text-accent-600 px-10 py-5 rounded-xl text-xl font-bold hover:bg-neutral-100 hover:scale-105 transition-all duration-300 shadow-2xl"
             >
               <Phone className="h-6 w-6" />
-              +254 XXX XXX XXX
+              +254 722 943 291
             </a>
             <p className="text-white/80 mt-4 text-sm">
               Available 24 hours a day, 7 days a week

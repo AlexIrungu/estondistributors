@@ -35,12 +35,7 @@ export default function AboutPage() {
     },
   ];
 
-  const stats = [
-    { value: '10+', label: 'Years Experience' },
-    { value: '500+', label: 'Happy Clients' },
-    { value: '24/7', label: 'Service Available' },
-    { value: '100%', label: 'Quality Guaranteed' },
-  ];
+ 
 
   const milestones = [
     {
@@ -243,39 +238,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="relative py-20 bg-secondary-900 text-white overflow-hidden">
-        <div className="absolute inset-0 z-0">
-          <Image
-            src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1920&q=80"
-            alt="Statistics background"
-            fill
-            className="object-cover opacity-20"
-          />
-        </div>
-
-        <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Our Impact in Numbers
-            </h2>
-            <p className="text-xl text-neutral-200">
-              Delivering excellence across Kenya
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat) => (
-              <div key={stat.label} className="text-center">
-                <div className="text-4xl md:text-6xl font-bold text-primary-400 mb-2">
-                  {stat.value}
-                </div>
-                <div className="text-lg text-neutral-300">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      
 
       {/* Team Section */}
       <section className="py-20 bg-white">

@@ -75,12 +75,7 @@ export default function ProductsPage() {
     },
   ];
 
-  const stats = [
-    { value: '50M+', label: 'Liters Supplied Monthly' },
-    { value: '500+', label: 'Business Partners' },
-    { value: '99.8%', label: 'Quality Compliance' },
-    { value: '24/7', label: 'Customer Support' },
-  ];
+  
 
   return (
     <div>
@@ -121,23 +116,8 @@ export default function ProductsPage() {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-16 bg-secondary-800">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="text-4xl md:text-5xl font-bold text-primary-400 mb-2">
-                  {stat.value}
-                </div>
-                <div className="text-neutral-300 text-sm md:text-base">
-                  {stat.label}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+     
+    
 
       {/* Quality Features */}
       <section className="py-16 bg-neutral-50">
@@ -198,7 +178,7 @@ export default function ProductsPage() {
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="relative h-96 md:h-[500px] rounded-2xl overflow-hidden shadow-2xl">
               <Image
-                src="https://images.unsplash.com/photo-1585992441919-d2d1be6b5e8f?w=800&q=80"
+                src="https://images.unsplash.com/photo-1707991131382-b82e0abca0a5?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8cXVhbGl0eSUyMGNvbnRyb2wlMjBmdWVsfGVufDB8fDB8fHww&auto=format&fit=crop&q=60&w=500"
                 alt="Quality control"
                 fill
                 className="object-cover"

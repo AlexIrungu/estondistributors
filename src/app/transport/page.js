@@ -127,26 +127,7 @@ export default function TransportPage() {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-16 bg-accent-800">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="inline-flex items-center justify-center w-12 h-12 bg-accent-600 text-white rounded-xl mb-3">
-                  {stat.icon}
-                </div>
-                <div className="text-4xl md:text-5xl font-bold text-primary-400 mb-2">
-                  {stat.value}
-                </div>
-                <div className="text-neutral-200 text-sm md:text-base">
-                  {stat.label}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      
 
       {/* Services Overview */}
       <section className="py-20 bg-white">
