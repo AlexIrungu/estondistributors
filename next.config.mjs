@@ -2,7 +2,6 @@
 const nextConfig = {
   reactCompiler: true,
   output: 'export',
-  // Remove this line: distDir: '.next',
   images: {
     unoptimized: true,
     remotePatterns: [
