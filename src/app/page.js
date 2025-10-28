@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { Shield, Clock, TruckIcon, Award, Users, MapPin } from 'lucide-react';
+import PriceWidget from '@/components/PriceWidget';
+import LowStockAlert from '@/components/inventory/LowStockAlert';
 
 export default function Home() {
   const products = [
@@ -57,9 +59,11 @@ export default function Home() {
     },
   ];
 
-
   return (
     <div>
+      {/* Low Stock Alert Banner - Add at the very top */}
+      <LowStockAlert variant="banner" />
+
       {/* Hero Section */}
       <section className="relative bg-secondary-900 text-white overflow-hidden">
         {/* Hero Image */}
@@ -110,7 +114,23 @@ export default function Home() {
         </div>
       </section>
 
-     
+      {/* Price Widget Section */}
+      <section className="py-16 bg-white">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-secondary-900 mb-4">
+              Today's Fuel Prices
+            </h2>
+            <p className="text-lg text-neutral-600 max-w-2xl mx-auto">
+              Official EPRA prices updated monthly. View current rates for Nairobi and other locations.
+            </p>
+          </div>
+          
+          <div className="max-w-2xl mx-auto">
+            <PriceWidget location="nairobi" />
+          </div>
+        </div>
+      </section>
 
       {/* Products Section */}
       <section className="py-20 bg-neutral-50">
@@ -159,6 +179,18 @@ export default function Home() {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Quick Inventory Check Link */}
+          <div className="text-center mt-12">
+            <Link
+              href="/inventory"
+              className="inline-flex items-center gap-2 text-primary-600 font-semibold hover:text-primary-700 transition-colors text-lg"
+            >
+              <Shield className="h-5 w-5" />
+              Check Real-Time Stock Availability
+              <span className="group-hover:translate-x-1 transition-transform">→</span>
+            </Link>
           </div>
         </div>
       </section>

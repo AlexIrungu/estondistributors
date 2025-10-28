@@ -2,6 +2,8 @@ import { Fuel, Droplet, Zap, Shield, Award, Leaf, Clock } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import ProductCard from '@/components/ProductCard';
+import InventoryStatus from '@/components/inventory/InventoryStatus';
+import LowStockAlert from '@/components/inventory/LowStockAlert';
 
 export default function ProductsPage() {
   const products = [
@@ -19,6 +21,7 @@ export default function ProductsPage() {
       ],
       applications: ['Passenger Cars', 'Motorcycles', 'Small Generators', 'Light Commercial Vehicles'],
       image: 'https://images.unsplash.com/photo-1545262810-77515befe149?w=800&q=80',
+      fuelType: 'pms', // Added for inventory
     },
     {
       name: 'Super Petrol',
@@ -34,6 +37,7 @@ export default function ProductsPage() {
       ],
       applications: ['High-Performance Vehicles', 'Sports Cars', 'Luxury Vehicles', 'Premium SUVs'],
       image: 'https://images.unsplash.com/photo-1485463611174-f302f6a5c1c9?w=800&q=80',
+      fuelType: 'pms', // Same as regular petrol in inventory
     },
     {
       name: 'Diesel',
@@ -49,6 +53,7 @@ export default function ProductsPage() {
       ],
       applications: ['Heavy-Duty Trucks', 'Buses', 'Construction Equipment', 'Industrial Generators', 'Marine Vessels', 'Agricultural Machinery'],
       image: 'https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?w=800&q=80',
+      fuelType: 'ago', // Added for inventory
     },
   ];
 
@@ -75,10 +80,11 @@ export default function ProductsPage() {
     },
   ];
 
-  
-
   return (
     <div>
+      {/* Low Stock Alert Banner - Add at the very top */}
+      <LowStockAlert variant="banner" />
+
       {/* Hero Section with Image */}
       <section className="relative h-[500px] flex items-center justify-center overflow-hidden">
         <Image
@@ -116,8 +122,68 @@ export default function ProductsPage() {
         </div>
       </section>
 
-     
-    
+      {/* Inventory Status Section - NEW */}
+      <section className="py-12 bg-gradient-to-br from-primary-50 to-accent-50">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl md:text-4xl font-bold text-secondary-800 mb-3">
+              Real-Time Stock Availability
+            </h2>
+            <p className="text-lg text-neutral-600 max-w-2xl mx-auto">
+              Check our current inventory levels at both depots
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+            {/* Nairobi Depot */}
+            <div className="bg-white rounded-2xl shadow-lg p-6 border border-neutral-200">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center">
+                  <Fuel className="h-6 w-6 text-primary-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-secondary-800">Nairobi Depot</h3>
+                  <p className="text-sm text-neutral-600">Industrial Area</p>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <InventoryStatus locationId="nairobi" fuelType="pms" variant="compact" />
+                <InventoryStatus locationId="nairobi" fuelType="ago" variant="compact" />
+                <InventoryStatus locationId="nairobi" fuelType="ik" variant="compact" />
+              </div>
+            </div>
+
+            {/* Mombasa Depot */}
+            <div className="bg-white rounded-2xl shadow-lg p-6 border border-neutral-200">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 bg-accent-100 rounded-xl flex items-center justify-center">
+                  <Fuel className="h-6 w-6 text-accent-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-secondary-800">Mombasa Depot</h3>
+                  <p className="text-sm text-neutral-600">Port Reitz</p>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <InventoryStatus locationId="mombasa" fuelType="pms" variant="compact" />
+                <InventoryStatus locationId="mombasa" fuelType="ago" variant="compact" />
+                <InventoryStatus locationId="mombasa" fuelType="ik" variant="compact" />
+              </div>
+            </div>
+          </div>
+
+          {/* Link to full inventory page */}
+          <div className="text-center mt-8">
+            <Link
+              href="/inventory"
+              className="inline-flex items-center gap-2 text-primary-600 font-semibold hover:text-primary-700 transition-colors"
+            >
+              View Detailed Inventory
+              <span className="group-hover:translate-x-1 transition-transform">→</span>
+            </Link>
+          </div>
+        </div>
+      </section>
 
       {/* Quality Features */}
       <section className="py-16 bg-neutral-50">
@@ -166,7 +232,21 @@ export default function ProductsPage() {
           
           <div className="space-y-16">
             {products.map((product, index) => (
-              <ProductCard key={product.name} product={product} index={index} />
+              <div key={product.name} className="relative">
+                <ProductCard product={product} index={index} />
+                
+                {/* Add simple inventory badge below each product */}
+                <div className="mt-4 flex justify-center gap-4">
+                  <div className="inline-flex items-center gap-2 bg-neutral-50 px-4 py-2 rounded-lg border border-neutral-200">
+                    <span className="text-sm font-medium text-neutral-700">Nairobi:</span>
+                    <InventoryStatus locationId="nairobi" fuelType={product.fuelType} variant="simple" />
+                  </div>
+                  <div className="inline-flex items-center gap-2 bg-neutral-50 px-4 py-2 rounded-lg border border-neutral-200">
+                    <span className="text-sm font-medium text-neutral-700">Mombasa:</span>
+                    <InventoryStatus locationId="mombasa" fuelType={product.fuelType} variant="simple" />
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         </div>

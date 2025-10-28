@@ -2,7 +2,7 @@
 const isProduction = process.env.NODE_ENV === 'production';
 
 const nextConfig = {
-  output: 'export',
+  // output: 'export',
   distDir: 'out',
   images: {
     unoptimized: true,
