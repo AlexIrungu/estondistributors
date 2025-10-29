@@ -1,4 +1,4 @@
-// src/app/api/auth/[...nextauth]/route.js
+// src/lib/auth.js
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { authenticateUser } from '@/lib/db/userStorage';
@@ -60,6 +60,3 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   secret: process.env.NEXTAUTH_SECRET,
 });
-
-export const GET = handlers.GET;
-export const POST = handlers.POST;

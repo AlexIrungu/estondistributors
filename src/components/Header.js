@@ -3,19 +3,23 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
+import { useSession, signOut } from 'next-auth/react';
 import { 
   Menu, X, Fuel, TruckIcon, Phone, TrendingUp, ChevronDown, 
-  History, BarChart3, Calculator, Package, Bell, User, 
-  BarChart, Truck, Settings 
+  History, Calculator, Package, Bell, User, 
+  BarChart, Truck, Settings, LogOut, ShoppingCart
 } from 'lucide-react';
 
 export default function Header() {
+  const { data: session, status } = useSession();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [pricesDropdownOpen, setPricesDropdownOpen] = useState(false);
   const [toolsDropdownOpen, setToolsDropdownOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const pricesDropdownRef = useRef(null);
   const toolsDropdownRef = useRef(null);
+  const userDropdownRef = useRef(null);
   const pathname = usePathname();
 
   // Handle scroll effect
@@ -36,6 +40,9 @@ export default function Header() {
       if (toolsDropdownRef.current && !toolsDropdownRef.current.contains(event.target)) {
         setToolsDropdownOpen(false);
       }
+      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target)) {
+        setUserDropdownOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -46,6 +53,7 @@ export default function Header() {
     setIsMenuOpen(false);
     setPricesDropdownOpen(false);
     setToolsDropdownOpen(false);
+    setUserDropdownOpen(false);
   }, [pathname]);
 
   // Prevent body scroll when mobile menu is open
@@ -108,12 +116,12 @@ export default function Header() {
           icon: <Truck className="w-4 h-4" />,
           description: 'Manage your vehicle fleet'
         },
-        { 
+        ...(session ? [{
           name: 'Dashboard', 
           href: '/dashboard', 
           icon: <BarChart className="w-4 h-4" />,
           description: 'Customer dashboard & analytics'
-        }
+        }] : [])
       ]
     },
     { 
@@ -133,6 +141,11 @@ export default function Header() {
       return pathname === '/';
     }
     return pathname.startsWith(href);
+  };
+
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: '/' });
+    setUserDropdownOpen(false);
   };
 
   return (
@@ -161,9 +174,16 @@ export default function Header() {
                   estonkd@gmail.com
                 </a>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-neutral-300">⏰</span>
-                <span>Mon - Fri: 8AM - 6PM | Emergency: 24/7</span>
+              <div className="flex items-center gap-4">
+                {session && (
+                  <span className="text-neutral-300">
+                    Welcome, <span className="text-white font-medium">{session.user.name}</span>
+                  </span>
+                )}
+                <div className="flex items-center gap-2">
+                  <span className="text-neutral-300">⏰</span>
+                  <span>Mon - Fri: 8AM - 6PM | Emergency: 24/7</span>
+                </div>
               </div>
             </div>
           </div>
@@ -206,9 +226,11 @@ export default function Header() {
                           if (item.name === 'Prices') {
                             setPricesDropdownOpen(!pricesDropdownOpen);
                             setToolsDropdownOpen(false);
+                            setUserDropdownOpen(false);
                           } else {
                             setToolsDropdownOpen(!toolsDropdownOpen);
                             setPricesDropdownOpen(false);
+                            setUserDropdownOpen(false);
                           }
                         }}
                         className={`flex items-center gap-1 px-4 py-2 font-medium transition-colors rounded-lg ${
@@ -295,26 +317,105 @@ export default function Header() {
 
             {/* CTA Buttons - Desktop */}
             <div className="hidden lg:flex items-center gap-3">
-              <Link
-                href="/alerts"
-                className="flex items-center gap-2 px-4 py-2 text-secondary-700 border-2 border-secondary-200 rounded-lg font-medium hover:border-secondary-300 hover:bg-secondary-50 transition-all group"
-              >
-                <Bell className="h-4 w-4 group-hover:text-amber-500 transition-colors" />
-                <span>Price Alerts</span>
-              </Link>
-              <a
-                href="tel:+254722943291"
-                className="flex items-center gap-2 px-4 py-2 text-secondary-700 border-2 border-secondary-200 rounded-lg font-medium hover:border-secondary-300 hover:bg-secondary-50 transition-all"
-              >
-                <Phone className="h-4 w-4" />
-                <span>Call Us</span>
-              </a>
-              <Link
-                href="/contact"
-                className="px-6 py-2 bg-primary-500 text-white rounded-lg font-semibold hover:bg-primary-600 hover:shadow-lg hover:scale-105 transition-all duration-200"
-              >
-                Get Quote
-              </Link>
+              {status === 'loading' ? (
+                <div className="w-32 h-10 bg-neutral-100 animate-pulse rounded-lg"></div>
+              ) : session ? (
+                <>
+                  <Link
+                    href="/alerts"
+                    className="flex items-center gap-2 px-4 py-2 text-secondary-700 border-2 border-secondary-200 rounded-lg font-medium hover:border-secondary-300 hover:bg-secondary-50 transition-all group"
+                  >
+                    <Bell className="h-4 w-4 group-hover:text-amber-500 transition-colors" />
+                    <span className="hidden xl:inline">Alerts</span>
+                  </Link>
+                  <div className="relative" ref={userDropdownRef}>
+                    <button
+                      onClick={() => {
+                        setUserDropdownOpen(!userDropdownOpen);
+                        setPricesDropdownOpen(false);
+                        setToolsDropdownOpen(false);
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 text-secondary-700 border-2 border-secondary-200 rounded-lg font-medium hover:border-secondary-300 hover:bg-secondary-50 transition-all"
+                    >
+                      <div className="w-6 h-6 bg-primary-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                        {session.user.name?.charAt(0).toUpperCase() || 'U'}
+                      </div>
+                      <span className="hidden xl:inline">{session.user.name || 'Account'}</span>
+                      <ChevronDown className={`w-4 h-4 transition-transform ${userDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {/* User Dropdown */}
+                    {userDropdownOpen && (
+                      <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-neutral-200 py-2 z-50">
+                        <div className="px-4 py-3 border-b border-neutral-200">
+                          <p className="text-sm font-semibold text-secondary-900">{session.user.name}</p>
+                          <p className="text-xs text-neutral-600">{session.user.email}</p>
+                          {session.user.role && (
+                            <span className="inline-block mt-1 text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full">
+                              {session.user.role}
+                            </span>
+                          )}
+                        </div>
+                        <Link
+                          href="/dashboard"
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-primary-50 transition-colors"
+                          onClick={() => setUserDropdownOpen(false)}
+                        >
+                          <BarChart className="w-4 h-4 text-primary-600" />
+                          <span className="text-sm font-medium text-secondary-900">Dashboard</span>
+                        </Link>
+                        <Link
+                          href="/dashboard?tab=orders"
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-primary-50 transition-colors"
+                          onClick={() => setUserDropdownOpen(false)}
+                        >
+                          <ShoppingCart className="w-4 h-4 text-neutral-600" />
+                          <span className="text-sm font-medium text-secondary-900">My Orders</span>
+                        </Link>
+                        <Link
+                          href="/dashboard?tab=settings"
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-primary-50 transition-colors"
+                          onClick={() => setUserDropdownOpen(false)}
+                        >
+                          <Settings className="w-4 h-4 text-neutral-600" />
+                          <span className="text-sm font-medium text-secondary-900">Settings</span>
+                        </Link>
+                        <div className="border-t border-neutral-200 my-2"></div>
+                        <button
+                          onClick={handleLogout}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition-colors text-left"
+                        >
+                          <LogOut className="w-4 h-4 text-red-600" />
+                          <span className="text-sm font-medium text-red-600">Logout</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/alerts"
+                    className="flex items-center gap-2 px-4 py-2 text-secondary-700 border-2 border-secondary-200 rounded-lg font-medium hover:border-secondary-300 hover:bg-secondary-50 transition-all group"
+                  >
+                    <Bell className="h-4 w-4 group-hover:text-amber-500 transition-colors" />
+                    <span className="hidden xl:inline">Price Alerts</span>
+                  </Link>
+                  <Link
+                    href="/login"
+                    className="flex items-center gap-2 px-4 py-2 text-secondary-700 border-2 border-secondary-200 rounded-lg font-medium hover:border-secondary-300 hover:bg-secondary-50 transition-all"
+                  >
+                    <User className="h-4 w-4" />
+                    <span>Login</span>
+                  </Link>
+                  <Link
+                    href="/contact"
+                    className="px-6 py-2 bg-primary-500 text-white rounded-lg font-semibold hover:bg-primary-600 hover:shadow-lg hover:scale-105 transition-all duration-200"
+                  >
+                    Get Quote
+                  </Link>
+                </>
+              )}
             </div>
 
             {/* Mobile Menu Button */}
@@ -361,6 +462,21 @@ export default function Header() {
               <X size={24} />
             </button>
           </div>
+
+          {/* User Info Section - Mobile */}
+          {session && (
+            <div className="px-4 py-3 bg-primary-50 border-b border-primary-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center text-white font-bold">
+                  {session.user.name?.charAt(0).toUpperCase() || 'U'}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-secondary-900">{session.user.name}</p>
+                  <p className="text-xs text-neutral-600">{session.user.email}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Mobile Menu Items */}
           <div className="flex-1 overflow-y-auto py-4">
@@ -481,28 +597,51 @@ export default function Header() {
 
           {/* Mobile Menu Footer */}
           <div className="p-4 border-t border-neutral-200 space-y-2">
-            <Link
-              href="/alerts"
-              className="flex items-center justify-center gap-2 w-full px-4 py-3 text-secondary-700 border-2 border-secondary-200 rounded-lg font-medium hover:border-secondary-300 hover:bg-secondary-50 transition-all"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <Bell className="h-4 w-4" />
-              <span>Price Alerts</span>
-            </Link>
-            <a
-              href="tel:+254722943291"
-              className="flex items-center justify-center gap-2 w-full px-4 py-3 text-secondary-700 border-2 border-secondary-200 rounded-lg font-medium hover:border-secondary-300 hover:bg-secondary-50 transition-all"
-            >
-              <Phone className="h-4 w-4" />
-              <span>Call Now</span>
-            </a>
-            <Link
-              href="/contact"
-              className="block text-center w-full px-4 py-3 bg-primary-500 text-white rounded-lg font-semibold hover:bg-primary-600 transition-colors"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Get a Quote
-            </Link>
+            {session ? (
+              <>
+                <Link
+                  href="/dashboard"
+                  className="flex items-center justify-center gap-2 w-full px-4 py-3 text-secondary-700 border-2 border-secondary-200 rounded-lg font-medium hover:border-secondary-300 hover:bg-secondary-50 transition-all"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <BarChart className="h-4 w-4" />
+                  <span>Dashboard</span>
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-red-50 text-red-600 border-2 border-red-200 rounded-lg font-medium hover:bg-red-100 transition-all"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>Logout</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/alerts"
+                  className="flex items-center justify-center gap-2 w-full px-4 py-3 text-secondary-700 border-2 border-secondary-200 rounded-lg font-medium hover:border-secondary-300 hover:bg-secondary-50 transition-all"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <Bell className="h-4 w-4" />
+                  <span>Price Alerts</span>
+                </Link>
+                <Link
+                  href="/login"
+                  className="flex items-center justify-center gap-2 w-full px-4 py-3 text-secondary-700 border-2 border-secondary-200 rounded-lg font-medium hover:border-secondary-300 hover:bg-secondary-50 transition-all"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <User className="h-4 w-4" />
+                  <span>Login</span>
+                </Link>
+                <Link
+                  href="/contact"
+                  className="block text-center w-full px-4 py-3 bg-primary-500 text-white rounded-lg font-semibold hover:bg-primary-600 transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Get a Quote
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>
