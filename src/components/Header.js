@@ -3,13 +3,19 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
-import { Menu, X, Fuel, TruckIcon, Phone, TrendingUp, ChevronDown, History, BarChart3, Calculator, Package } from 'lucide-react';
+import { 
+  Menu, X, Fuel, TruckIcon, Phone, TrendingUp, ChevronDown, 
+  History, BarChart3, Calculator, Package, Bell, User, 
+  BarChart, Truck, Settings 
+} from 'lucide-react';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [pricesDropdownOpen, setPricesDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
+  const [toolsDropdownOpen, setToolsDropdownOpen] = useState(false);
+  const pricesDropdownRef = useRef(null);
+  const toolsDropdownRef = useRef(null);
   const pathname = usePathname();
 
   // Handle scroll effect
@@ -21,11 +27,14 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      if (pricesDropdownRef.current && !pricesDropdownRef.current.contains(event.target)) {
         setPricesDropdownOpen(false);
+      }
+      if (toolsDropdownRef.current && !toolsDropdownRef.current.contains(event.target)) {
+        setToolsDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -36,6 +45,7 @@ export default function Header() {
   useEffect(() => {
     setIsMenuOpen(false);
     setPricesDropdownOpen(false);
+    setToolsDropdownOpen(false);
   }, [pathname]);
 
   // Prevent body scroll when mobile menu is open
@@ -73,10 +83,36 @@ export default function Header() {
           description: 'Historical trends & predictions'
         },
         { 
-          name: 'Calculator', 
+          name: 'Price Alerts', 
+          href: '/alerts', 
+          icon: <Bell className="w-4 h-4" />,
+          description: 'Get notified of price changes',
+          badge: 'New'
+        }
+      ]
+    },
+    { 
+      name: 'Tools', 
+      href: '/calculator',
+      hasDropdown: true,
+      dropdownItems: [
+        { 
+          name: 'Savings Calculator', 
           href: '/calculator', 
           icon: <Calculator className="w-4 h-4" />,
-          description: 'Fuel savings calculator',
+          description: 'Calculate fuel savings'
+        },
+        { 
+          name: 'Fleet Management', 
+          href: '/fleet', 
+          icon: <Truck className="w-4 h-4" />,
+          description: 'Manage your vehicle fleet'
+        },
+        { 
+          name: 'Dashboard', 
+          href: '/dashboard', 
+          icon: <BarChart className="w-4 h-4" />,
+          description: 'Customer dashboard & analytics'
         }
       ]
     },
@@ -86,7 +122,7 @@ export default function Header() {
       badge: true,
       badgeText: 'Live',
       icon: <Package className="w-4 h-4" />
-    },  // ← ADDED
+    },
     { name: 'Transport', href: '/transport' },
     { name: 'About', href: '/about' },
     { name: 'Contact', href: '/contact' },
@@ -158,11 +194,23 @@ export default function Header() {
             {/* Desktop Navigation */}
             <div className="hidden lg:flex items-center gap-1">
               {navigation.map((item) => (
-                <div key={item.name} className="relative" ref={item.hasDropdown ? dropdownRef : null}>
+                <div 
+                  key={item.name} 
+                  className="relative" 
+                  ref={item.hasDropdown ? (item.name === 'Prices' ? pricesDropdownRef : toolsDropdownRef) : null}
+                >
                   {item.hasDropdown ? (
                     <>
                       <button
-                        onClick={() => setPricesDropdownOpen(!pricesDropdownOpen)}
+                        onClick={() => {
+                          if (item.name === 'Prices') {
+                            setPricesDropdownOpen(!pricesDropdownOpen);
+                            setToolsDropdownOpen(false);
+                          } else {
+                            setToolsDropdownOpen(!toolsDropdownOpen);
+                            setPricesDropdownOpen(false);
+                          }
+                        }}
                         className={`flex items-center gap-1 px-4 py-2 font-medium transition-colors rounded-lg ${
                           isActive(item.href)
                             ? 'text-primary-600'
@@ -178,18 +226,24 @@ export default function Header() {
                             </span>
                           )}
                         </span>
-                        <ChevronDown className={`w-4 h-4 transition-transform ${pricesDropdownOpen ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`w-4 h-4 transition-transform ${
+                          (item.name === 'Prices' && pricesDropdownOpen) || 
+                          (item.name === 'Tools' && toolsDropdownOpen) ? 'rotate-180' : ''
+                        }`} />
                       </button>
 
                       {/* Dropdown Menu */}
-                      {pricesDropdownOpen && (
+                      {(item.name === 'Prices' && pricesDropdownOpen) || (item.name === 'Tools' && toolsDropdownOpen) ? (
                         <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-neutral-200 py-2 z-50">
                           {item.dropdownItems.map((dropItem) => (
                             <Link
                               key={dropItem.href}
                               href={dropItem.href}
                               className="flex items-start gap-3 px-4 py-3 hover:bg-primary-50 transition-colors group"
-                              onClick={() => setPricesDropdownOpen(false)}
+                              onClick={() => {
+                                setPricesDropdownOpen(false);
+                                setToolsDropdownOpen(false);
+                              }}
                             >
                               <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-primary-200 transition-colors">
                                 {dropItem.icon}
@@ -212,7 +266,7 @@ export default function Header() {
                             </Link>
                           ))}
                         </div>
-                      )}
+                      ) : null}
                     </>
                   ) : (
                     <Link
@@ -241,6 +295,13 @@ export default function Header() {
 
             {/* CTA Buttons - Desktop */}
             <div className="hidden lg:flex items-center gap-3">
+              <Link
+                href="/alerts"
+                className="flex items-center gap-2 px-4 py-2 text-secondary-700 border-2 border-secondary-200 rounded-lg font-medium hover:border-secondary-300 hover:bg-secondary-50 transition-all group"
+              >
+                <Bell className="h-4 w-4 group-hover:text-amber-500 transition-colors" />
+                <span>Price Alerts</span>
+              </Link>
               <a
                 href="tel:+254722943291"
                 className="flex items-center gap-2 px-4 py-2 text-secondary-700 border-2 border-secondary-200 rounded-lg font-medium hover:border-secondary-300 hover:bg-secondary-50 transition-all"
@@ -309,7 +370,13 @@ export default function Header() {
                   {item.hasDropdown ? (
                     <>
                       <button
-                        onClick={() => setPricesDropdownOpen(!pricesDropdownOpen)}
+                        onClick={() => {
+                          if (item.name === 'Prices') {
+                            setPricesDropdownOpen(!pricesDropdownOpen);
+                          } else {
+                            setToolsDropdownOpen(!toolsDropdownOpen);
+                          }
+                        }}
                         className={`w-full flex items-center justify-between px-4 py-3 rounded-lg font-medium transition-colors ${
                           isActive(item.href)
                             ? 'bg-primary-50 text-primary-600'
@@ -325,11 +392,14 @@ export default function Header() {
                             </span>
                           )}
                         </span>
-                        <ChevronDown className={`w-4 h-4 transition-transform ${pricesDropdownOpen ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`w-4 h-4 transition-transform ${
+                          (item.name === 'Prices' && pricesDropdownOpen) || 
+                          (item.name === 'Tools' && toolsDropdownOpen) ? 'rotate-180' : ''
+                        }`} />
                       </button>
                       
                       {/* Mobile Dropdown Items */}
-                      {pricesDropdownOpen && (
+                      {(item.name === 'Prices' && pricesDropdownOpen) || (item.name === 'Tools' && toolsDropdownOpen) ? (
                         <div className="mt-1 ml-4 space-y-1">
                           {item.dropdownItems.map((dropItem) => (
                             <Link
@@ -359,7 +429,7 @@ export default function Header() {
                             </Link>
                           ))}
                         </div>
-                      )}
+                      ) : null}
                     </>
                   ) : (
                     <Link
@@ -411,6 +481,14 @@ export default function Header() {
 
           {/* Mobile Menu Footer */}
           <div className="p-4 border-t border-neutral-200 space-y-2">
+            <Link
+              href="/alerts"
+              className="flex items-center justify-center gap-2 w-full px-4 py-3 text-secondary-700 border-2 border-secondary-200 rounded-lg font-medium hover:border-secondary-300 hover:bg-secondary-50 transition-all"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <Bell className="h-4 w-4" />
+              <span>Price Alerts</span>
+            </Link>
             <a
               href="tel:+254722943291"
               className="flex items-center justify-center gap-2 w-full px-4 py-3 text-secondary-700 border-2 border-secondary-200 rounded-lg font-medium hover:border-secondary-300 hover:bg-secondary-50 transition-all"
