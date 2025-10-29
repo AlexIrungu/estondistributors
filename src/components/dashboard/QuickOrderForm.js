@@ -9,6 +9,7 @@ import { calculateDeliveryCost } from '@/lib/utils/deliveryCalculations';
 
 export default function QuickOrderForm({ onOrderCreated }) {
   const [prices, setPrices] = useState([]);
+  const [loadingPrices, setLoadingPrices] = useState(true);
   const [formData, setFormData] = useState({
     fuelType: 'pms',
     quantity: 1000,
@@ -31,12 +32,31 @@ export default function QuickOrderForm({ onOrderCreated }) {
   }, []);
 
   useEffect(() => {
-    calculateOrderSummary();
+    if (prices.length > 0) {
+      calculateOrderSummary();
+    }
   }, [formData, prices]);
 
   const loadPrices = async () => {
-    const data = await getCurrentPrices();
-    setPrices(data);
+    try {
+      setLoadingPrices(true);
+      const data = await getCurrentPrices();
+      
+      // Ensure data is an array
+      if (Array.isArray(data)) {
+        setPrices(data);
+      } else if (data && Array.isArray(data.prices)) {
+        setPrices(data.prices);
+      } else {
+        console.error('Invalid prices data:', data);
+        setPrices([]);
+      }
+    } catch (error) {
+      console.error('Error loading prices:', error);
+      setPrices([]);
+    } finally {
+      setLoadingPrices(false);
+    }
   };
 
   const calculateOrderSummary = () => {
@@ -122,6 +142,58 @@ export default function QuickOrderForm({ onOrderCreated }) {
       setMessage('Network error. Please try again.');
     }
   };
+
+  // Show loading state while prices are being fetched
+  if (loadingPrices) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-neutral-200 overflow-hidden">
+        <div className="bg-gradient-to-r from-primary-500 to-blue-600 p-6 text-white">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+              <Package className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold">Quick Order</h2>
+              <p className="text-blue-100">Place a new fuel order</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-12 text-center">
+          <Loader2 className="w-8 h-8 text-primary-500 animate-spin mx-auto mb-3" />
+          <p className="text-neutral-600">Loading prices...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if no prices available
+  if (!prices || prices.length === 0) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-neutral-200 overflow-hidden">
+        <div className="bg-gradient-to-r from-primary-500 to-blue-600 p-6 text-white">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+              <Package className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold">Quick Order</h2>
+              <p className="text-blue-100">Place a new fuel order</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-12 text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
+          <p className="text-neutral-600 mb-2">Unable to load prices</p>
+          <button
+            onClick={loadPrices}
+            className="text-primary-600 hover:text-primary-700 font-medium text-sm"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-neutral-200 overflow-hidden">

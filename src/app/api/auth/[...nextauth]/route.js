@@ -1,65 +1,112 @@
 // src/app/api/auth/[...nextauth]/route.js
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { authenticateUser } from '@/lib/db/userStorage';
+import { authenticateUser } from '@/lib/db/userStorage.server';
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+// Define auth options
+const authOptions = {
   providers: [
     CredentialsProvider({
+      id: 'credentials',
       name: 'Credentials',
       credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
+        email: { 
+          label: 'Email', 
+          type: 'email',
+          placeholder: 'demo@estonkd.com' 
+        },
+        password: { 
+          label: 'Password', 
+          type: 'password',
+          placeholder: '******' 
+        }
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
+        console.log('🔐 Authorize attempt:', credentials?.email);
+        
+        if (!credentials?.email || !credentials?.password) {
+          console.log('❌ Missing credentials');
+          return null;
+        }
+
         try {
           const result = await authenticateUser(
             credentials.email,
             credentials.password
           );
 
-          if (result.success && result.user) {
-            return result.user;
-          }
+          console.log('Auth result:', result.success ? '✅ Success' : '❌ Failed');
 
+          if (result.success && result.user) {
+            return {
+              id: result.user.id,
+              email: result.user.email,
+              name: result.user.name,
+              role: result.user.role || 'customer',
+            };
+          }
+          
           return null;
         } catch (error) {
-          console.error('Auth error:', error);
+          console.error('❌ Auth error:', error);
           return null;
         }
       }
     })
   ],
+  
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
+        token.role = user.role;
         token.email = user.email;
         token.name = user.name;
-        token.role = user.role;
       }
+      
+      // Handle session updates
+      if (trigger === 'update' && session) {
+        return { ...token, ...session.user };
+      }
+      
       return token;
     },
+    
     async session({ session, token }) {
-      if (token) {
+      if (token && session.user) {
         session.user.id = token.id;
+        session.user.role = token.role;
         session.user.email = token.email;
         session.user.name = token.name;
-        session.user.role = token.role;
       }
       return session;
+    },
+    
+    async redirect({ url, baseUrl }) {
+      // Redirect to dashboard after login
+      if (url.startsWith('/')) return `${baseUrl}${url}`;
+      else if (new URL(url).origin === baseUrl) return url;
+      return `${baseUrl}/dashboard`;
     }
   },
+  
   pages: {
     signIn: '/login',
     error: '/login',
   },
+  
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  secret: process.env.NEXTAUTH_SECRET,
-});
+  
+  secret: process.env.NEXTAUTH_SECRET || 'development-secret-change-in-production',
+  
+  debug: process.env.NODE_ENV === 'development',
+};
 
-export const GET = handlers.GET;
-export const POST = handlers.POST;
+// Create handler
+const handler = NextAuth(authOptions);
+
+// Export for Next.js App Router
+export { handler as GET, handler as POST };

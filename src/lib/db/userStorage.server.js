@@ -1,29 +1,55 @@
-// src/lib/db/userStorage.js
-// User authentication and profile management
+// src/lib/db/userStorage.server.js
+import { promises as fs } from 'fs';
+import path from 'path';
+import crypto from 'crypto';
 
-// Simple hash function for client-side (NOT for production!)
-// In production, you should use a proper backend with bcrypt
-const hashPassword = async (password) => {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const hash = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hash))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
+const DATA_DIR = path.join(process.cwd(), 'data');
+const USERS_FILE = path.join(DATA_DIR, 'users.json');
+
+// Hash password using Node.js crypto
+const hashPassword = (password) => {
+  return crypto.createHash('sha256').update(password).digest('hex');
 };
 
-const verifyPassword = async (password, hashedPassword) => {
-  const hashed = await hashPassword(password);
+const verifyPassword = (password, hashedPassword) => {
+  const hashed = hashPassword(password);
   return hashed === hashedPassword;
 };
 
-const STORAGE_KEY = 'eston_users';
+// Ensure data directory exists
+async function ensureDataDir() {
+  try {
+    await fs.access(DATA_DIR);
+  } catch {
+    await fs.mkdir(DATA_DIR, { recursive: true });
+  }
+}
+
+// Read users from file
+async function readUsers() {
+  try {
+    await ensureDataDir();
+    const data = await fs.readFile(USERS_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return [];
+    }
+    throw error;
+  }
+}
+
+// Write users to file
+async function writeUsers(users) {
+  await ensureDataDir();
+  await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
+}
 
 // User structure
-const createUser = async (data) => ({
+const createUser = (data) => ({
   id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
   email: data.email.toLowerCase(),
-  password: await hashPassword(data.password),
+  password: hashPassword(data.password),
   name: data.name,
   phone: data.phone || '',
   company: data.company || '',
@@ -53,22 +79,15 @@ const createUser = async (data) => ({
   lastLogin: null,
 });
 
-// Get all users
-export function getAllUsers() {
-  if (typeof window === 'undefined') return [];
-  
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
-  } catch (error) {
-    console.error('Error loading users:', error);
-    return [];
-  }
+// Get user by email
+export async function getUserByEmail(email) {
+  const users = await readUsers();
+  return users.find(u => u.email.toLowerCase() === email.toLowerCase());
 }
 
 // Get user by ID
-export function getUserById(id) {
-  const users = getAllUsers();
+export async function getUserById(id) {
+  const users = await readUsers();
   const user = users.find(u => u.id === id);
   if (user) {
     const { password, ...userWithoutPassword } = user;
@@ -77,17 +96,11 @@ export function getUserById(id) {
   return null;
 }
 
-// Get user by email
-export function getUserByEmail(email) {
-  const users = getAllUsers();
-  return users.find(u => u.email.toLowerCase() === email.toLowerCase());
-}
-
-// Create new user (registration)
+// Create new user
 export async function createUserAccount(data) {
   try {
     // Check if email already exists
-    const existing = getUserByEmail(data.email);
+    const existing = await getUserByEmail(data.email);
     if (existing) {
       return {
         success: false,
@@ -120,11 +133,11 @@ export async function createUserAccount(data) {
       };
     }
 
-    const users = getAllUsers();
-    const newUser = await createUser(data);
+    const users = await readUsers();
+    const newUser = createUser(data);
     
     users.push(newUser);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+    await writeUsers(users);
     
     // Return user without password
     const { password, ...userWithoutPassword } = newUser;
@@ -137,15 +150,15 @@ export async function createUserAccount(data) {
     console.error('Error creating user:', error);
     return {
       success: false,
-      error: error.message
+      error: error.message || 'Failed to create user'
     };
   }
 }
 
-// Authenticate user (login)
+// Authenticate user
 export async function authenticateUser(email, password) {
   try {
-    const user = getUserByEmail(email);
+    const user = await getUserByEmail(email);
     
     if (!user) {
       return {
@@ -161,7 +174,7 @@ export async function authenticateUser(email, password) {
       };
     }
 
-    const isValidPassword = await verifyPassword(password, user.password);
+    const isValidPassword = verifyPassword(password, user.password);
     
     if (!isValidPassword) {
       return {
@@ -189,10 +202,10 @@ export async function authenticateUser(email, password) {
   }
 }
 
-// Update user profile
+// Update user
 export async function updateUser(id, updates) {
   try {
-    const users = getAllUsers();
+    const users = await readUsers();
     const index = users.findIndex(u => u.id === id);
     
     if (index === -1) {
@@ -211,7 +224,7 @@ export async function updateUser(id, updates) {
       updatedAt: new Date().toISOString()
     };
     
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+    await writeUsers(users);
     
     const { password: _, ...userWithoutPassword } = users[index];
     
@@ -231,7 +244,7 @@ export async function updateUser(id, updates) {
 // Update user password
 export async function updateUserPassword(id, currentPassword, newPassword) {
   try {
-    const users = getAllUsers();
+    const users = await readUsers();
     const user = users.find(u => u.id === id);
     
     if (!user) {
@@ -242,7 +255,7 @@ export async function updateUserPassword(id, currentPassword, newPassword) {
     }
 
     // Verify current password
-    const isValidPassword = await verifyPassword(currentPassword, user.password);
+    const isValidPassword = verifyPassword(currentPassword, user.password);
     if (!isValidPassword) {
       return {
         success: false,
@@ -259,7 +272,7 @@ export async function updateUserPassword(id, currentPassword, newPassword) {
     }
 
     // Hash new password
-    const hashedPassword = await hashPassword(newPassword);
+    const hashedPassword = hashPassword(newPassword);
     
     // Update password
     const index = users.findIndex(u => u.id === id);
@@ -269,7 +282,7 @@ export async function updateUserPassword(id, currentPassword, newPassword) {
       updatedAt: new Date().toISOString()
     };
     
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+    await writeUsers(users);
     
     return {
       success: true,
@@ -285,9 +298,9 @@ export async function updateUserPassword(id, currentPassword, newPassword) {
 }
 
 // Update user stats
-export function updateUserStats(userId, orderData) {
+export async function updateUserStats(userId, orderData) {
   try {
-    const users = getAllUsers();
+    const users = await readUsers();
     const index = users.findIndex(u => u.id === userId);
     
     if (index === -1) return { success: false };
@@ -298,7 +311,7 @@ export function updateUserStats(userId, orderData) {
       lastOrderDate: orderData.orderDate,
     };
     
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+    await writeUsers(users);
     
     return { success: true };
   } catch (error) {
@@ -307,45 +320,7 @@ export function updateUserStats(userId, orderData) {
   }
 }
 
-// Create demo users
-export async function createDemoUsers() {
-  const demoUsers = [
-    {
-      email: 'demo@estonkd.com',
-      password: 'demo123',
-      name: 'Demo Customer',
-      phone: '+254700000000',
-      company: 'Demo Company Ltd',
-      businessType: 'corporate',
-      deliveryAddress: '123 Demo Street, Nairobi',
-      preferredFuelTypes: ['pms', 'ago'],
-    },
-    {
-      email: 'admin@estonkd.com',
-      password: 'admin123',
-      name: 'Admin User',
-      phone: '+254700000001',
-      role: 'admin',
-    }
-  ];
-
-  const results = [];
-  for (const user of demoUsers) {
-    const result = await createUserAccount(user);
-    results.push(result);
-  }
-
-  return results;
-}
-
-export function demoUsersExist() {
-  const users = getAllUsers();
-  return users.some(u => u.email === 'demo@estonkd.com');
-}
-
-export async function initializeDemoUsers() {
-  if (!demoUsersExist()) {
-    return await createDemoUsers();
-  }
-  return { success: true, message: 'Demo users already exist' };
+// Get all users (admin only)
+export async function getAllUsers() {
+  return await readUsers();
 }

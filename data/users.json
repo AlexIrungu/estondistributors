@@ -1,0 +1,165 @@
+[
+  {
+    "id": "user_1761733592737_u2u9rstjs",
+    "email": "aleaxmuiruri@gmail.com",
+    "password": "8bb0cf6eb9b17d0f7d22b456f121257dc1254e1f01665370476383ea776df414",
+    "name": "alex",
+    "phone": "+254 719 571 601",
+    "company": "",
+    "address": "Nairobi west",
+    "role": "customer",
+    "profile": {
+      "businessType": "individual",
+      "deliveryAddress": "",
+      "billingAddress": "",
+      "preferredFuelTypes": [],
+      "paymentMethod": "cash"
+    },
+    "preferences": {
+      "emailNotifications": true,
+      "smsNotifications": false,
+      "priceAlerts": false,
+      "newsletter": true
+    },
+    "stats": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderDate": null
+    },
+    "status": "active",
+    "createdAt": "2025-10-29T10:26:32.737Z",
+    "updatedAt": "2025-10-29T10:26:32.738Z",
+    "lastLogin": null
+  },
+  {
+    "id": "user_1761733678144_vv09bcn1w",
+    "email": "alex.irungu@student.moringaschool.com",
+    "password": "8bb0cf6eb9b17d0f7d22b456f121257dc1254e1f01665370476383ea776df414",
+    "name": "Alex Irungu",
+    "phone": "+254 719 571 601",
+    "company": "",
+    "address": "Nairobi west",
+    "role": "customer",
+    "profile": {
+      "businessType": "individual",
+      "deliveryAddress": "",
+      "billingAddress": "",
+      "preferredFuelTypes": [],
+      "paymentMethod": "cash"
+    },
+    "preferences": {
+      "emailNotifications": true,
+      "smsNotifications": false,
+      "priceAlerts": false,
+      "newsletter": true
+    },
+    "stats": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderDate": null
+    },
+    "status": "active",
+    "createdAt": "2025-10-29T10:27:58.144Z",
+    "updatedAt": "2025-10-29T10:27:58.144Z",
+    "lastLogin": null
+  },
+  {
+    "id": "user_1761734409961_tmw1jrlbh",
+    "email": "nontsale@gmail.com",
+    "password": "8bb0cf6eb9b17d0f7d22b456f121257dc1254e1f01665370476383ea776df414",
+    "name": "Alex Irungu",
+    "phone": "+254 719 571 601",
+    "company": "",
+    "address": "Nairobi west",
+    "role": "customer",
+    "profile": {
+      "businessType": "individual",
+      "deliveryAddress": "",
+      "billingAddress": "",
+      "preferredFuelTypes": [],
+      "paymentMethod": "cash"
+    },
+    "preferences": {
+      "emailNotifications": true,
+      "smsNotifications": false,
+      "priceAlerts": false,
+      "newsletter": true
+    },
+    "stats": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderDate": null
+    },
+    "status": "active",
+    "createdAt": "2025-10-29T10:40:09.962Z",
+    "updatedAt": "2025-10-29T10:40:09.962Z",
+    "lastLogin": null
+  },
+  {
+    "id": "user_1761736012298_y7uiwebdr",
+    "email": "demo@estonkd.com",
+    "password": "d3ad9315b7be5dd53b31a273b3b3aba5defe700808305aa16a3062b76658a791",
+    "name": "Demo Customer",
+    "phone": "+254700000000",
+    "company": "Demo Company Ltd",
+    "address": "",
+    "role": "customer",
+    "profile": {
+      "businessType": "corporate",
+      "deliveryAddress": "123 Demo Street, Nairobi",
+      "billingAddress": "",
+      "preferredFuelTypes": [
+        "pms",
+        "ago"
+      ],
+      "paymentMethod": "cash"
+    },
+    "preferences": {
+      "emailNotifications": true,
+      "smsNotifications": false,
+      "priceAlerts": false,
+      "newsletter": true
+    },
+    "stats": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderDate": null
+    },
+    "status": "active",
+    "createdAt": "2025-10-29T11:06:52.298Z",
+    "updatedAt": "2025-10-29T11:07:41.041Z",
+    "lastLogin": "2025-10-29T11:07:41.039Z"
+  },
+  {
+    "id": "user_1761736012302_agjpv8sw1",
+    "email": "admin@estonkd.com",
+    "password": "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
+    "name": "Admin User",
+    "phone": "+254700000001",
+    "company": "",
+    "address": "",
+    "role": "admin",
+    "profile": {
+      "businessType": "individual",
+      "deliveryAddress": "",
+      "billingAddress": "",
+      "preferredFuelTypes": [],
+      "paymentMethod": "cash"
+    },
+    "preferences": {
+      "emailNotifications": true,
+      "smsNotifications": false,
+      "priceAlerts": false,
+      "newsletter": true
+    },
+    "stats": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderDate": null
+    },
+    "status": "active",
+    "createdAt": "2025-10-29T11:06:52.302Z",
+    "updatedAt": "2025-10-29T11:11:30.701Z",
+    "lastLogin": "2025-10-29T11:11:30.700Z"
+  }
+]

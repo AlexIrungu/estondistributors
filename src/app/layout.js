@@ -1,6 +1,5 @@
 // src/app/layout.js
 import { Geist, Geist_Mono } from "next/font/google";
-import { auth } from '@/lib/auth';
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -21,20 +20,18 @@ export const metadata = {
   description: "Leading supplier of petrol, super petrol, diesel and transport services in Kenya",
 };
 
-export default async function RootLayout({ children }) {
-  const session = await auth();
-
+export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <SessionProvider session={session}>
-          <Header />
-          <main className="min-h-screen">
-            {children}
-          </main>
-          <Footer />
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <SessionProvider>
+          <div className="flex flex-col min-h-screen">
+            <Header />
+            <main className="flex-1">
+              {children}
+            </main>
+            <Footer />
+          </div>
         </SessionProvider>
       </body>
     </html>

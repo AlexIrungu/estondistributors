@@ -5,10 +5,6 @@ import { useSession, signIn, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-/**
- * Custom hook for authentication
- * Provides easy access to auth state and methods
- */
 export function useAuth(options = {}) {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -18,7 +14,6 @@ export function useAuth(options = {}) {
   const isAuthenticated = status === 'authenticated';
   const user = session?.user;
 
-  // Redirect if auth is required but user is not authenticated
   useEffect(() => {
     if (requireAuth && !isLoading && !isAuthenticated) {
       router.push(redirectTo);
@@ -34,12 +29,18 @@ export function useAuth(options = {}) {
       });
 
       if (result?.error) {
-        return { success: false, error: result.error };
+        return { success: false, error: 'Invalid email or password' };
       }
 
-      router.push(callbackUrl);
-      return { success: true };
+      if (result?.ok) {
+        router.push(callbackUrl);
+        router.refresh(); // Refresh to update session
+        return { success: true };
+      }
+
+      return { success: false, error: 'Login failed' };
     } catch (error) {
+      console.error('Login error:', error);
       return { success: false, error: 'An error occurred during login' };
     }
   };
@@ -48,6 +49,7 @@ export function useAuth(options = {}) {
     try {
       await signOut({ redirect: false });
       router.push(callbackUrl);
+      router.refresh();
       return { success: true };
     } catch (error) {
       return { success: false, error: 'An error occurred during logout' };
@@ -56,7 +58,8 @@ export function useAuth(options = {}) {
 
   const register = async (userData) => {
     try {
-      const response = await fetch('/api/auth/register', {
+      // Changed from /api/auth/register to /api/register
+      const response = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData),
@@ -68,9 +71,10 @@ export function useAuth(options = {}) {
         return { success: false, error: data.error || 'Registration failed' };
       }
 
-      // Auto-login after registration
+      // Auto-login after successful registration
       return await login(userData.email, userData.password);
     } catch (error) {
+      console.error('Registration error:', error);
       return { success: false, error: 'An error occurred during registration' };
     }
   };
@@ -86,9 +90,6 @@ export function useAuth(options = {}) {
   };
 }
 
-/**
- * HOC to protect routes that require authentication
- */
 export function withAuth(Component, options = {}) {
   return function AuthenticatedComponent(props) {
     const { isAuthenticated, isLoading } = useAuth({ 
@@ -108,7 +109,7 @@ export function withAuth(Component, options = {}) {
     }
 
     if (!isAuthenticated) {
-      return null; // Will redirect in useEffect
+      return null;
     }
 
     return <Component {...props} />;
