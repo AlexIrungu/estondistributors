@@ -1,12 +1,14 @@
 // src/app/api/profile/route.js
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { updateUser, getUserById } from '@/lib/db/userStorage';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import connectDB from '@/lib/db/mongodb';
+import User from '@/lib/db/models/User';
 
 // GET - Get current user profile
 export async function GET(request) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     
     if (!session || !session.user) {
       return NextResponse.json(
@@ -15,7 +17,9 @@ export async function GET(request) {
       );
     }
 
-    const user = getUserById(session.user.id);
+    await connectDB();
+
+    const user = await User.findById(session.user.id);
     
     if (!user) {
       return NextResponse.json(
@@ -24,12 +28,23 @@ export async function GET(request) {
       );
     }
 
-    // Remove sensitive data
-    const { password, ...userWithoutPassword } = user;
+    // Return user without password
+    const userResponse = {
+      id: user._id.toString(),
+      email: user.email,
+      name: user.name,
+      phone: user.phone,
+      company: user.company,
+      role: user.role,
+      profile: user.profile,
+      stats: user.stats,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    };
 
     return NextResponse.json({
       success: true,
-      user: userWithoutPassword
+      user: userResponse
     });
   } catch (error) {
     console.error('Profile fetch error:', error);
@@ -43,7 +58,7 @@ export async function GET(request) {
 // PATCH - Update user profile
 export async function PATCH(request) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     
     if (!session || !session.user) {
       return NextResponse.json(
@@ -53,7 +68,7 @@ export async function PATCH(request) {
     }
 
     const body = await request.json();
-    const { name, email, phone, company, address } = body;
+    const { name, email, phone, company, address, profile } = body;
 
     // Validate required fields
     if (!name || !email) {
@@ -72,32 +87,68 @@ export async function PATCH(request) {
       );
     }
 
-    // Update user
-    const updateData = {
-      name,
-      email,
-      phone: phone || '',
-      company: company || '',
-      address: address || '',
-      updatedAt: new Date().toISOString()
-    };
+    await connectDB();
 
-    const result = updateUser(session.user.id, updateData);
-
-    if (!result.success) {
+    // Find user
+    const user = await User.findById(session.user.id);
+    
+    if (!user) {
       return NextResponse.json(
-        { error: result.error || 'Failed to update profile' },
-        { status: 400 }
+        { error: 'User not found' },
+        { status: 404 }
       );
     }
 
-    // Remove sensitive data from response
-    const { password, ...userWithoutPassword } = result.user;
+    // Check if email is taken by another user
+    if (email !== user.email) {
+      const existingUser = await User.findByEmail(email);
+      if (existingUser && existingUser._id.toString() !== user._id.toString()) {
+        return NextResponse.json(
+          { error: 'Email already in use' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Update user fields
+    user.name = name;
+    user.email = email;
+    user.phone = phone || user.phone;
+    user.company = company || user.company;
+    
+    // Update profile fields if provided
+    if (profile) {
+      user.profile = {
+        ...user.profile,
+        ...profile
+      };
+    }
+    
+    // Update delivery address if provided
+    if (address) {
+      user.profile.deliveryAddress = address;
+    }
+
+    await user.save();
+
+    console.log('✅ Profile updated:', user.email);
+
+    // Return user without password
+    const userResponse = {
+      id: user._id.toString(),
+      email: user.email,
+      name: user.name,
+      phone: user.phone,
+      company: user.company,
+      role: user.role,
+      profile: user.profile,
+      updatedAt: user.updatedAt
+    };
 
     return NextResponse.json({
       success: true,
       message: 'Profile updated successfully',
-      user: userWithoutPassword
+      user: userResponse
     });
   } catch (error) {
     console.error('Profile update error:', error);

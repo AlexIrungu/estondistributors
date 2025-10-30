@@ -2,12 +2,16 @@
 // API endpoint for subscribing to price alerts
 
 import { NextResponse } from 'next/server';
-import { createAlertSubscriptionRecord } from '@/lib/db/alertStorage';
+import connectDB from '@/lib/db/mongodb';
+import Alert from '@/lib/db/models/Alert';
 import { sendVerificationEmail } from '@/lib/services/emailService';
 import { sendVerificationSMS, formatPhoneNumber, isValidKenyanPhone } from '@/lib/services/smsService';
+import crypto from 'crypto';
 
 export async function POST(request) {
   try {
+    await connectDB();
+
     const body = await request.json();
     
     // Validate required fields
@@ -25,6 +29,15 @@ export async function POST(request) {
     if (!emailRegex.test(email)) {
       return NextResponse.json(
         { error: 'Invalid email format' },
+        { status: 400 }
+      );
+    }
+
+    // Check if email already exists
+    const existingSubscription = await Alert.findOne({ email });
+    if (existingSubscription) {
+      return NextResponse.json(
+        { error: 'Email already subscribed' },
         { status: 400 }
       );
     }
@@ -49,32 +62,35 @@ export async function POST(request) {
     // Format phone number if provided
     const formattedPhone = phone ? formatPhoneNumber(phone) : null;
 
+    // Generate verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+
     // Create subscription
-    const result = createAlertSubscriptionRecord({
+    const subscription = new Alert({
       name,
       email,
       phone: formattedPhone,
-      fuelTypes: fuelTypes || ['pms', 'ago', 'ik'],
-      locations: locations || ['nairobi', 'mombasa'],
-      alertTypes: alertTypes || ['price_increase', 'price_decrease', 'significant_change'],
-      threshold: threshold || 5,
-      emailEnabled: emailEnabled !== false,
-      smsEnabled: smsEnabled || false,
+      preferences: {
+        fuelTypes: fuelTypes || ['pms', 'ago', 'ik'],
+        locations: locations || ['nairobi', 'mombasa'],
+        alertTypes: alertTypes || ['price_increase', 'price_decrease', 'significant_change'],
+        threshold: threshold || 5,
+        emailEnabled: emailEnabled !== false,
+        smsEnabled: smsEnabled || false,
+      },
+      verificationToken,
+      verified: false,
+      status: 'pending',
     });
 
-    if (!result.success) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: 400 }
-      );
-    }
+    await subscription.save();
 
     // Send verification email
     if (emailEnabled !== false) {
       const emailResult = await sendVerificationEmail({
         to: email,
         name: name,
-        verificationToken: result.subscription.verificationToken,
+        verificationToken: verificationToken,
       });
 
       if (!emailResult.success) {
@@ -104,9 +120,9 @@ export async function POST(request) {
       success: true,
       message: 'Subscription created successfully! Please check your email to verify.',
       subscription: {
-        id: result.subscription.id,
-        email: result.subscription.email,
-        preferences: result.subscription.preferences,
+        id: subscription._id,
+        email: subscription.email,
+        preferences: subscription.preferences,
       }
     });
 
@@ -122,6 +138,8 @@ export async function POST(request) {
 // GET - Check subscription status
 export async function GET(request) {
   try {
+    await connectDB();
+
     const { searchParams } = new URL(request.url);
     const email = searchParams.get('email');
 
@@ -132,8 +150,7 @@ export async function GET(request) {
       );
     }
 
-    const { getAlertSubscriptionByEmail } = await import('@/lib/db/alertStorage');
-    const subscription = getAlertSubscriptionByEmail(email);
+    const subscription = await Alert.findOne({ email }).select('-verificationToken');
 
     if (!subscription) {
       return NextResponse.json(
@@ -145,7 +162,7 @@ export async function GET(request) {
     return NextResponse.json({
       exists: true,
       subscription: {
-        id: subscription.id,
+        id: subscription._id,
         status: subscription.status,
         verified: subscription.verified,
         preferences: subscription.preferences,

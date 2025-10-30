@@ -2,21 +2,14 @@
 // Main alert management API
 
 import { NextResponse } from 'next/server';
-import {
-  getAllAlertSubscriptions,
-  getAlertSubscription,
-  updateAlertSubscription,
-  verifyAlertSubscription,
-  pauseAlertSubscription,
-  resumeAlertSubscription,
-  unsubscribeAlert,
-  deleteAlertSubscription,
-  getAlertStatistics,
-} from '@/lib/db/alertStorage';
+import connectDB from '@/lib/db/mongodb';
+import Alert from '@/lib/db/models/Alert';
 
 // GET - Retrieve alerts
 export async function GET(request) {
   try {
+    await connectDB();
+
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action');
     const id = searchParams.get('id');
@@ -24,38 +17,50 @@ export async function GET(request) {
 
     // Get statistics
     if (action === 'stats') {
-      const stats = getAlertStatistics();
+      const stats = await Alert.getStatistics();
       return NextResponse.json(stats);
     }
 
     // Verify subscription
     if (action === 'verify' && token) {
-      const result = verifyAlertSubscription(token);
+      const subscription = await Alert.findOne({ verificationToken: token });
       
-      if (!result.success) {
+      if (!subscription) {
         return NextResponse.json(
-          { error: result.error },
+          { error: 'Invalid verification token' },
           { status: 400 }
         );
       }
 
+      if (subscription.verified) {
+        return NextResponse.json(
+          { error: 'Subscription already verified' },
+          { status: 400 }
+        );
+      }
+
+      subscription.verified = true;
+      subscription.status = 'active';
+      subscription.verificationToken = undefined;
+      await subscription.save();
+
       // Send welcome email after verification
       const { sendWelcomeEmail } = await import('@/lib/services/emailService');
       await sendWelcomeEmail({
-        to: result.subscription.email,
-        name: result.subscription.name,
+        to: subscription.email,
+        name: subscription.name,
       });
 
       return NextResponse.json({
         success: true,
         message: 'Email verified successfully!',
-        subscription: result.subscription,
+        subscription,
       });
     }
 
     // Get specific subscription
     if (id) {
-      const subscription = getAlertSubscription(id);
+      const subscription = await Alert.findById(id);
       
       if (!subscription) {
         return NextResponse.json(
@@ -67,8 +72,11 @@ export async function GET(request) {
       return NextResponse.json(subscription);
     }
 
-    // Get all subscriptions
-    const subscriptions = getAllAlertSubscriptions();
+    // Get all subscriptions (admin only - add auth check in production)
+    const subscriptions = await Alert.find()
+      .sort({ createdAt: -1 })
+      .select('-verificationToken'); // Don't expose tokens
+    
     return NextResponse.json(subscriptions);
 
   } catch (error) {
@@ -83,6 +91,8 @@ export async function GET(request) {
 // PUT - Update subscription
 export async function PUT(request) {
   try {
+    await connectDB();
+
     const body = await request.json();
     const { id, action, ...updates } = body;
 
@@ -93,38 +103,54 @@ export async function PUT(request) {
       );
     }
 
-    let result;
+    const subscription = await Alert.findById(id);
+
+    if (!subscription) {
+      return NextResponse.json(
+        { error: 'Subscription not found' },
+        { status: 404 }
+      );
+    }
 
     // Handle specific actions
     switch (action) {
       case 'pause':
-        result = pauseAlertSubscription(id);
+        subscription.status = 'paused';
+        subscription.pausedAt = new Date();
         break;
       
       case 'resume':
-        result = resumeAlertSubscription(id);
+        subscription.status = 'active';
+        subscription.pausedAt = undefined;
         break;
       
       case 'unsubscribe':
-        result = unsubscribeAlert(id);
+        subscription.status = 'unsubscribed';
+        subscription.unsubscribedAt = new Date();
         break;
       
       default:
         // General update
-        result = updateAlertSubscription(id, updates);
+        Object.keys(updates).forEach(key => {
+          if (key !== 'verified' && key !== 'verificationToken') {
+            if (key === 'preferences') {
+              subscription.preferences = {
+                ...subscription.preferences,
+                ...updates.preferences
+              };
+            } else {
+              subscription[key] = updates[key];
+            }
+          }
+        });
     }
 
-    if (!result.success) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: 400 }
-      );
-    }
+    await subscription.save();
 
     return NextResponse.json({
       success: true,
       message: 'Subscription updated successfully',
-      subscription: result.subscription,
+      subscription,
     });
 
   } catch (error) {
@@ -139,6 +165,8 @@ export async function PUT(request) {
 // DELETE - Delete subscription
 export async function DELETE(request) {
   try {
+    await connectDB();
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -149,12 +177,12 @@ export async function DELETE(request) {
       );
     }
 
-    const result = deleteAlertSubscription(id);
+    const subscription = await Alert.findByIdAndDelete(id);
 
-    if (!result.success) {
+    if (!subscription) {
       return NextResponse.json(
-        { error: result.error },
-        { status: 400 }
+        { error: 'Subscription not found' },
+        { status: 404 }
       );
     }
 

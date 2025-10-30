@@ -1,17 +1,8 @@
 // src/app/api/inventory/route.js
 
 import { NextResponse } from 'next/server';
-import {
-  getAllInventory,
-  getLocationInventory,
-  getFuelInventory,
-  updateInventory,
-  reserveStock,
-  completeOrder,
-  getLowStockAlerts,
-  getInventorySummary,
-  canFulfillOrder
-} from '@/lib/db/inventoryStorage';
+import connectDB from '@/lib/db/mongodb';
+import Inventory from '@/lib/db/models/Inventory';
 
 /**
  * GET - Fetch inventory data
@@ -23,6 +14,8 @@ import {
  */
 export async function GET(request) {
   try {
+    await connectDB();
+
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action') || 'all';
     const location = searchParams.get('location');
@@ -32,7 +25,7 @@ export async function GET(request) {
     switch (action) {
       case 'all':
         // Get all inventory
-        const allInventory = getAllInventory();
+        const allInventory = await Inventory.find();
         return NextResponse.json({
           success: true,
           data: allInventory
@@ -47,7 +40,7 @@ export async function GET(request) {
           }, { status: 400 });
         }
         
-        const locationInventory = getLocationInventory(location);
+        const locationInventory = await Inventory.findByLocation(location);
         if (!locationInventory) {
           return NextResponse.json({
             success: false,
@@ -69,11 +62,19 @@ export async function GET(request) {
           }, { status: 400 });
         }
 
-        const fuelInventory = getFuelInventory(location, fuelType);
+        const inventory = await Inventory.findByLocation(location);
+        if (!inventory) {
+          return NextResponse.json({
+            success: false,
+            error: 'Location not found'
+          }, { status: 404 });
+        }
+
+        const fuelInventory = inventory.fuels.find(f => f.type === fuelType);
         if (!fuelInventory) {
           return NextResponse.json({
             success: false,
-            error: 'Fuel inventory not found'
+            error: 'Fuel type not found'
           }, { status: 404 });
         }
 
@@ -84,7 +85,7 @@ export async function GET(request) {
 
       case 'alerts':
         // Get low stock alerts
-        const alerts = getLowStockAlerts();
+        const alerts = await Inventory.getLowStockAlerts();
         return NextResponse.json({
           success: true,
           count: alerts.length,
@@ -93,7 +94,7 @@ export async function GET(request) {
 
       case 'summary':
         // Get inventory summary across all locations
-        const summary = getInventorySummary();
+        const summary = await Inventory.getSummary();
         return NextResponse.json({
           success: true,
           data: summary
@@ -108,10 +109,34 @@ export async function GET(request) {
           }, { status: 400 });
         }
 
-        const checkResult = canFulfillOrder(location, fuelType, parseInt(quantity));
+        const checkInventory = await Inventory.findByLocation(location);
+        if (!checkInventory) {
+          return NextResponse.json({
+            success: false,
+            error: 'Location not found'
+          }, { status: 404 });
+        }
+
+        const fuel = checkInventory.fuels.find(f => f.type === fuelType);
+        if (!fuel) {
+          return NextResponse.json({
+            success: false,
+            error: 'Fuel type not found'
+          }, { status: 404 });
+        }
+
+        const requestedQty = parseInt(quantity);
+        const available = fuel.currentStock - fuel.reserved;
+        const canFulfill = available >= requestedQty;
+
         return NextResponse.json({
           success: true,
-          data: checkResult
+          data: {
+            canFulfill,
+            available,
+            requested: requestedQty,
+            shortfall: canFulfill ? 0 : requestedQty - available
+          }
         });
 
       default:
@@ -141,6 +166,8 @@ export async function GET(request) {
  */
 export async function POST(request) {
   try {
+    await connectDB();
+
     const body = await request.json();
     const { action, location, fuelType, quantity, updates } = body;
 
@@ -150,6 +177,22 @@ export async function POST(request) {
         success: false,
         error: 'Action, location, and fuelType are required'
       }, { status: 400 });
+    }
+
+    const inventory = await Inventory.findByLocation(location);
+    if (!inventory) {
+      return NextResponse.json({
+        success: false,
+        error: 'Location not found'
+      }, { status: 404 });
+    }
+
+    const fuelIndex = inventory.fuels.findIndex(f => f.type === fuelType);
+    if (fuelIndex === -1) {
+      return NextResponse.json({
+        success: false,
+        error: 'Fuel type not found'
+      }, { status: 404 });
     }
 
     switch (action) {
@@ -162,11 +205,18 @@ export async function POST(request) {
           }, { status: 400 });
         }
 
-        const updatedInventory = updateInventory(location, fuelType, updates);
+        Object.keys(updates).forEach(key => {
+          if (inventory.fuels[fuelIndex][key] !== undefined) {
+            inventory.fuels[fuelIndex][key] = updates[key];
+          }
+        });
+
+        await inventory.save();
+
         return NextResponse.json({
           success: true,
           message: 'Inventory updated successfully',
-          data: updatedInventory
+          data: inventory.fuels[fuelIndex]
         });
 
       case 'reserve':
@@ -178,11 +228,22 @@ export async function POST(request) {
           }, { status: 400 });
         }
 
-        const reservedStock = reserveStock(location, fuelType, quantity);
+        const available = inventory.fuels[fuelIndex].currentStock - inventory.fuels[fuelIndex].reserved;
+        if (available < quantity) {
+          return NextResponse.json({
+            success: false,
+            error: 'Insufficient stock available',
+            available
+          }, { status: 400 });
+        }
+
+        inventory.fuels[fuelIndex].reserved += quantity;
+        await inventory.save();
+
         return NextResponse.json({
           success: true,
           message: 'Stock reserved successfully',
-          data: reservedStock
+          data: inventory.fuels[fuelIndex]
         });
 
       case 'complete':
@@ -194,11 +255,21 @@ export async function POST(request) {
           }, { status: 400 });
         }
 
-        const completedOrder = completeOrder(location, fuelType, quantity);
+        if (inventory.fuels[fuelIndex].reserved < quantity) {
+          return NextResponse.json({
+            success: false,
+            error: 'Not enough reserved stock'
+          }, { status: 400 });
+        }
+
+        inventory.fuels[fuelIndex].reserved -= quantity;
+        inventory.fuels[fuelIndex].currentStock -= quantity;
+        await inventory.save();
+
         return NextResponse.json({
           success: true,
           message: 'Order completed successfully',
-          data: completedOrder
+          data: inventory.fuels[fuelIndex]
         });
 
       default:
@@ -222,6 +293,8 @@ export async function POST(request) {
  */
 export async function PUT(request) {
   try {
+    await connectDB();
+
     const body = await request.json();
     const { updates } = body;
 
@@ -235,14 +308,44 @@ export async function PUT(request) {
     // Process bulk updates
     const results = [];
     for (const [location, fuels] of Object.entries(updates)) {
+      const inventory = await Inventory.findByLocation(location);
+      
+      if (!inventory) {
+        results.push({
+          location,
+          success: false,
+          error: 'Location not found'
+        });
+        continue;
+      }
+
       for (const [fuelType, data] of Object.entries(fuels)) {
+        const fuelIndex = inventory.fuels.findIndex(f => f.type === fuelType);
+        
+        if (fuelIndex === -1) {
+          results.push({
+            location,
+            fuelType,
+            success: false,
+            error: 'Fuel type not found'
+          });
+          continue;
+        }
+
         try {
-          const updated = updateInventory(location, fuelType, data);
+          Object.keys(data).forEach(key => {
+            if (inventory.fuels[fuelIndex][key] !== undefined) {
+              inventory.fuels[fuelIndex][key] = data[key];
+            }
+          });
+
+          await inventory.save();
+
           results.push({
             location,
             fuelType,
             success: true,
-            data: updated
+            data: inventory.fuels[fuelIndex]
           });
         } catch (error) {
           results.push({
@@ -275,6 +378,8 @@ export async function PUT(request) {
  */
 export async function DELETE(request) {
   try {
+    await connectDB();
+
     const { searchParams } = new URL(request.url);
     const location = searchParams.get('location');
     const fuelType = searchParams.get('fuelType');
@@ -287,17 +392,31 @@ export async function DELETE(request) {
       }, { status: 400 });
     }
 
-    // Release reserved stock (add back to available)
-    const updates = {
-      reserved: -parseInt(quantity)
-    };
+    const inventory = await Inventory.findByLocation(location);
+    if (!inventory) {
+      return NextResponse.json({
+        success: false,
+        error: 'Location not found'
+      }, { status: 404 });
+    }
 
-    const updatedInventory = updateInventory(location, fuelType, updates);
+    const fuelIndex = inventory.fuels.findIndex(f => f.type === fuelType);
+    if (fuelIndex === -1) {
+      return NextResponse.json({
+        success: false,
+        error: 'Fuel type not found'
+      }, { status: 404 });
+    }
+
+    // Release reserved stock
+    const releaseQty = parseInt(quantity);
+    inventory.fuels[fuelIndex].reserved = Math.max(0, inventory.fuels[fuelIndex].reserved - releaseQty);
+    await inventory.save();
     
     return NextResponse.json({
       success: true,
       message: 'Reserved stock released',
-      data: updatedInventory
+      data: inventory.fuels[fuelIndex]
     });
 
   } catch (error) {

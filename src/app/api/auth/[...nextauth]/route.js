@@ -1,7 +1,8 @@
 // src/app/api/auth/[...nextauth]/route.js
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { authenticateUser } from '@/lib/db/userStorage.server';
+import User from '@/lib/db/models/User';
+import connectDB from '@/lib/db/mongodb';
 
 // Define auth options
 const authOptions = {
@@ -30,23 +31,33 @@ const authOptions = {
         }
 
         try {
-          const result = await authenticateUser(
-            credentials.email,
-            credentials.password
-          );
+          // Connect to MongoDB
+          await connectDB();
 
-          console.log('Auth result:', result.success ? '✅ Success' : '❌ Failed');
-
-          if (result.success && result.user) {
-            return {
-              id: result.user.id,
-              email: result.user.email,
-              name: result.user.name,
-              role: result.user.role || 'customer',
-            };
-          }
+          // Find and authenticate user using MongoDB model
+          const user = await User.findByEmail(credentials.email);
           
-          return null;
+          if (!user) {
+            console.log('❌ User not found');
+            return null;
+          }
+
+          // Verify password using model method
+          const isValid = await user.comparePassword(credentials.password);
+          
+          if (!isValid) {
+            console.log('❌ Invalid password');
+            return null;
+          }
+
+          console.log('✅ Authentication successful');
+
+          return {
+            id: user._id.toString(),
+            email: user.email,
+            name: user.name,
+            role: user.role || 'customer',
+          };
         } catch (error) {
           console.error('❌ Auth error:', error);
           return null;
@@ -110,6 +121,4 @@ const handler = NextAuth(authOptions);
 
 // Export for Next.js App Router
 export { handler as GET, handler as POST };
-
-// 🔥 ADD THIS EXPORT - This is what's missing!
 export { authOptions };
