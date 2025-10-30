@@ -3,13 +3,13 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import connectDB from '@/lib/db/mongodb';
-import Fleet from '@/lib/db/models/Fleet';
+import { Vehicle, Refuel } from '@/lib/db/models/Fleet';
 
 export async function GET(request) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -19,18 +19,24 @@ export async function GET(request) {
     await connectDB();
 
     const { searchParams } = new URL(request.url);
-    const action = searchParams.get('action');
+    const action = searchParams.get('action') || 'vehicles';
     const vehicleId = searchParams.get('vehicleId');
 
     switch (action) {
-      case 'vehicles':
-        const vehicles = await Fleet.findByUser(session.user.id);
+      case 'vehicles': {
+        // Get all vehicles for the user
+        const vehicles = await Vehicle.find({ 
+          userId: session.user.id,
+          status: { $ne: 'deleted' }
+        }).sort({ createdAt: -1 });
+        
         return NextResponse.json({
           success: true,
           vehicles
         });
+      }
 
-      case 'vehicle':
+      case 'vehicle': {
         if (!vehicleId) {
           return NextResponse.json(
             { error: 'Vehicle ID required' },
@@ -38,7 +44,7 @@ export async function GET(request) {
           );
         }
         
-        const vehicle = await Fleet.findById(vehicleId);
+        const vehicle = await Vehicle.findById(vehicleId);
         
         if (!vehicle || vehicle.userId.toString() !== session.user.id) {
           return NextResponse.json(
@@ -51,85 +57,120 @@ export async function GET(request) {
           success: true,
           vehicle
         });
+      }
 
-      case 'refuels':
+      case 'refuels': {
         if (vehicleId) {
           // Get refuels for specific vehicle
-          const vehicleWithRefuels = await Fleet.findById(vehicleId);
-          if (!vehicleWithRefuels || vehicleWithRefuels.userId.toString() !== session.user.id) {
-            return NextResponse.json(
-              { error: 'Vehicle not found' },
-              { status: 404 }
-            );
-          }
+          const refuels = await Refuel.find({ 
+            vehicleId,
+            userId: session.user.id 
+          }).sort({ date: -1 });
           
           return NextResponse.json({
             success: true,
-            refuels: vehicleWithRefuels.refuels
+            refuels
           });
         } else {
           // Get all refuels for user
-          const vehicles = await Fleet.findByUser(session.user.id);
-          const allRefuels = vehicles.flatMap(vehicle => 
-            vehicle.refuels.map(refuel => ({
-              ...refuel.toObject(),
-              vehicleId: vehicle._id,
-              vehicleName: vehicle.name,
-              registrationNumber: vehicle.registrationNumber
-            }))
-          );
-          
-          // Sort by date, most recent first
-          allRefuels.sort((a, b) => new Date(b.date) - new Date(a.date));
+          const refuels = await Refuel.find({ 
+            userId: session.user.id 
+          })
+          .sort({ date: -1 })
+          .populate('vehicleId', 'vehicleNumber vehicleName');
           
           return NextResponse.json({
             success: true,
-            refuels: allRefuels
+            refuels
           });
         }
+      }
 
-      case 'analytics':
-        const analyticsVehicles = await Fleet.findByUser(session.user.id);
-        
-        // Calculate analytics
-        const totalVehicles = analyticsVehicles.length;
-        const activeVehicles = analyticsVehicles.filter(v => v.status === 'active').length;
-        
-        let totalRefuels = 0;
-        let totalLiters = 0;
-        let totalCost = 0;
-        let totalDistance = 0;
-        
-        analyticsVehicles.forEach(vehicle => {
-          totalRefuels += vehicle.refuels.length;
-          vehicle.refuels.forEach(refuel => {
-            totalLiters += refuel.liters;
-            totalCost += refuel.totalCost;
-            if (refuel.odometerReading) {
-              totalDistance += refuel.odometerReading;
-            }
-          });
+      case 'analytics': {
+        const vehicles = await Vehicle.find({ 
+          userId: session.user.id,
+          status: { $ne: 'deleted' }
         });
         
-        const averageFuelEfficiency = totalDistance > 0 && totalLiters > 0
-          ? (totalDistance / totalLiters).toFixed(2)
-          : 0;
+        const refuels = await Refuel.find({ 
+          userId: session.user.id 
+        }).populate('vehicleId');
+        
+        // Calculate basic analytics
+        const totalVehicles = vehicles.length;
+        const activeVehicles = vehicles.filter(v => v.status === 'active').length;
+        
+        let totalLiters = 0;
+        let totalFuelCost = 0;
+        let totalDistance = 0;
+        let refuelsByMonth = {};
+        let fuelTypeBreakdown = {};
+        let vehicleTypeBreakdown = {};
+        
+        // Process refuels
+        refuels.forEach(refuel => {
+          totalLiters += refuel.liters;
+          totalFuelCost += refuel.totalCost;
+          
+          // Monthly breakdown
+          const month = new Date(refuel.date).toISOString().slice(0, 7);
+          if (!refuelsByMonth[month]) {
+            refuelsByMonth[month] = { cost: 0, liters: 0, month };
+          }
+          refuelsByMonth[month].cost += refuel.totalCost;
+          refuelsByMonth[month].liters += refuel.liters;
+          
+          // Fuel type breakdown
+          if (!fuelTypeBreakdown[refuel.fuelType]) {
+            fuelTypeBreakdown[refuel.fuelType] = { cost: 0, liters: 0 };
+          }
+          fuelTypeBreakdown[refuel.fuelType].cost += refuel.totalCost;
+          fuelTypeBreakdown[refuel.fuelType].liters += refuel.liters;
+        });
+        
+        // Process vehicles
+        vehicles.forEach(vehicle => {
+          totalDistance += vehicle.currentOdometer || 0;
+          
+          // Vehicle type breakdown
+          const type = vehicle.vehicleType || 'other';
+          vehicleTypeBreakdown[type] = (vehicleTypeBreakdown[type] || 0) + 1;
+          
+          // Update vehicle stats if available
+          if (vehicle.stats) {
+            totalDistance += vehicle.stats.totalDistance || 0;
+          }
+        });
+        
+        const avgFuelEfficiency = totalDistance > 0 && totalLiters > 0
+          ? totalDistance / totalLiters
+          : 8.5; // Default value
+        
+        const monthlyTrend = Object.values(refuelsByMonth).sort((a, b) => 
+          a.month.localeCompare(b.month)
+        );
         
         const analytics = {
           totalVehicles,
           activeVehicles,
-          totalRefuels,
+          totalRefuels: refuels.length,
           totalLiters: parseFloat(totalLiters.toFixed(2)),
-          totalCost: parseFloat(totalCost.toFixed(2)),
+          totalFuelCost: parseFloat(totalFuelCost.toFixed(2)),
           totalDistance: parseFloat(totalDistance.toFixed(2)),
-          averageFuelEfficiency: parseFloat(averageFuelEfficiency),
-          averageCostPerLiter: totalLiters > 0 ? parseFloat((totalCost / totalLiters).toFixed(2)) : 0
+          avgFuelEfficiency: parseFloat(avgFuelEfficiency.toFixed(2)),
+          avgCostPerLiter: totalLiters > 0 
+            ? parseFloat((totalFuelCost / totalLiters).toFixed(2)) 
+            : 0,
+          monthlyTrend,
+          fuelTypeBreakdown,
+          vehicleTypeBreakdown
         };
         
         return NextResponse.json({
           success: true,
           analytics
         });
+      }
 
       default:
         return NextResponse.json(
@@ -140,7 +181,7 @@ export async function GET(request) {
   } catch (error) {
     console.error('Fleet API error:', error);
     return NextResponse.json(
-      { error: error.message },
+      { error: error.message || 'Internal server error' },
       { status: 500 }
     );
   }
@@ -150,7 +191,7 @@ export async function POST(request) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -163,20 +204,24 @@ export async function POST(request) {
     const { action } = body;
 
     switch (action) {
-      case 'add-vehicle':
-        const newVehicle = new Fleet({
+      case 'add-vehicle': {
+        const vehicleData = {
           userId: session.user.id,
-          name: body.vehicle.name,
-          registrationNumber: body.vehicle.registrationNumber,
-          type: body.vehicle.type,
-          fuelType: body.vehicle.fuelType,
-          tankCapacity: body.vehicle.tankCapacity,
-          currentOdometer: body.vehicle.currentOdometer || 0,
-          status: body.vehicle.status || 'active',
-          driver: body.vehicle.driver,
-          notes: body.vehicle.notes
-        });
+          vehicleNumber: body.vehicleNumber,
+          vehicleName: body.vehicleName || '',
+          vehicleType: body.vehicleType,
+          make: body.make || '',
+          model: body.model || '',
+          year: body.year || new Date().getFullYear(),
+          fuelType: body.fuelType,
+          tankCapacity: body.tankCapacity || 0,
+          avgConsumption: body.avgConsumption || 0,
+          currentOdometer: body.currentOdometer || 0,
+          status: body.status || 'active',
+          notes: body.notes || ''
+        };
         
+        const newVehicle = new Vehicle(vehicleData);
         await newVehicle.save();
         
         return NextResponse.json({
@@ -184,9 +229,19 @@ export async function POST(request) {
           message: 'Vehicle added successfully',
           vehicle: newVehicle
         });
+      }
 
-      case 'add-refuel':
-        const vehicle = await Fleet.findById(body.refuel.vehicleId);
+      case 'add-refuel': {
+        const { vehicleId, date, liters, pricePerLiter, odometer, location, fuelStation, isFull, notes } = body;
+        
+        if (!vehicleId) {
+          return NextResponse.json(
+            { error: 'Vehicle ID required' },
+            { status: 400 }
+          );
+        }
+        
+        const vehicle = await Vehicle.findById(vehicleId);
         
         if (!vehicle || vehicle.userId.toString() !== session.user.id) {
           return NextResponse.json(
@@ -195,22 +250,50 @@ export async function POST(request) {
           );
         }
         
-        // Add refuel to vehicle
-        vehicle.refuels.push({
-          date: body.refuel.date,
-          fuelType: body.refuel.fuelType,
-          liters: body.refuel.liters,
-          pricePerLiter: body.refuel.pricePerLiter,
-          totalCost: body.refuel.totalCost,
-          odometerReading: body.refuel.odometerReading,
-          location: body.refuel.location,
-          filledBy: body.refuel.filledBy,
-          notes: body.refuel.notes
+        // Create refuel record
+        const refuel = new Refuel({
+          vehicleId,
+          userId: session.user.id,
+          date: date || new Date(),
+          odometer: odometer || vehicle.currentOdometer,
+          liters,
+          pricePerLiter,
+          totalCost: liters * pricePerLiter,
+          fuelType: vehicle.fuelType,
+          location: location || '',
+          fuelStation: fuelStation || '',
+          isFull: isFull || false,
+          notes: notes || ''
         });
         
-        // Update vehicle odometer
-        if (body.refuel.odometerReading && body.refuel.odometerReading > vehicle.currentOdometer) {
-          vehicle.currentOdometer = body.refuel.odometerReading;
+        await refuel.save();
+        
+        // Update vehicle stats
+        vehicle.stats = vehicle.stats || {
+          totalRefuels: 0,
+          totalLiters: 0,
+          totalCost: 0,
+          totalDistance: 0,
+          avgFuelEfficiency: 0,
+          lastRefuelDate: null
+        };
+        
+        vehicle.stats.totalRefuels += 1;
+        vehicle.stats.totalLiters += liters;
+        vehicle.stats.totalCost += refuel.totalCost;
+        vehicle.stats.lastRefuelDate = refuel.date;
+        
+        // Update odometer if provided and greater
+        if (odometer && odometer > vehicle.currentOdometer) {
+          const distanceTraveled = odometer - vehicle.currentOdometer;
+          vehicle.stats.totalDistance += distanceTraveled;
+          vehicle.currentOdometer = odometer;
+          
+          // Calculate efficiency
+          if (vehicle.stats.totalLiters > 0) {
+            vehicle.stats.avgFuelEfficiency = 
+              vehicle.stats.totalDistance / vehicle.stats.totalLiters;
+          }
         }
         
         await vehicle.save();
@@ -218,67 +301,96 @@ export async function POST(request) {
         return NextResponse.json({
           success: true,
           message: 'Refuel record added successfully',
+          refuel,
           vehicle
         });
+      }
 
-      case 'create-demo':
-        // Create demo fleet vehicles
+      case 'create-demo': {
+        // Create demo vehicles
         const demoVehicles = [
           {
             userId: session.user.id,
-            name: 'Delivery Truck 1',
-            registrationNumber: 'KCA 123A',
-            type: 'truck',
+            vehicleNumber: 'KCA 123A',
+            vehicleName: 'Delivery Truck 1',
+            vehicleType: 'truck',
+            make: 'Isuzu',
+            model: 'NPR',
+            year: 2020,
             fuelType: 'ago',
             tankCapacity: 200,
             currentOdometer: 45000,
             status: 'active',
-            driver: 'John Kamau',
-            refuels: [
-              {
-                date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-                fuelType: 'ago',
-                liters: 180,
-                pricePerLiter: 162.5,
-                totalCost: 29250,
-                odometerReading: 44800,
-                location: 'Nairobi Depot',
-                filledBy: 'Station Attendant'
-              }
-            ]
+            stats: {
+              totalRefuels: 0,
+              totalLiters: 0,
+              totalCost: 0,
+              totalDistance: 0,
+              avgFuelEfficiency: 0
+            }
           },
           {
             userId: session.user.id,
-            name: 'Van 2',
-            registrationNumber: 'KBZ 456B',
-            type: 'van',
+            vehicleNumber: 'KBZ 456B',
+            vehicleName: 'Van 2',
+            vehicleType: 'van',
+            make: 'Toyota',
+            model: 'Hiace',
+            year: 2019,
             fuelType: 'pms',
             tankCapacity: 60,
             currentOdometer: 32000,
             status: 'active',
-            driver: 'Mary Wanjiru',
-            refuels: [
-              {
-                date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-                fuelType: 'pms',
-                liters: 55,
-                pricePerLiter: 177.3,
-                totalCost: 9751.5,
-                odometerReading: 31900,
-                location: 'Mombasa Depot',
-                filledBy: 'Station Attendant'
-              }
-            ]
+            stats: {
+              totalRefuels: 0,
+              totalLiters: 0,
+              totalCost: 0,
+              totalDistance: 0,
+              avgFuelEfficiency: 0
+            }
           }
         ];
         
-        const createdVehicles = await Fleet.insertMany(demoVehicles);
+        const createdVehicles = await Vehicle.insertMany(demoVehicles);
+        
+        // Create demo refuels
+        const demoRefuels = [
+          {
+            vehicleId: createdVehicles[0]._id,
+            userId: session.user.id,
+            date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+            odometer: 44800,
+            liters: 180,
+            pricePerLiter: 171.47,
+            totalCost: 180 * 171.47,
+            fuelType: 'ago',
+            location: 'Nairobi Depot',
+            fuelStation: 'Total Energies',
+            isFull: true
+          },
+          {
+            vehicleId: createdVehicles[1]._id,
+            userId: session.user.id,
+            date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+            odometer: 31900,
+            liters: 55,
+            pricePerLiter: 184.52,
+            totalCost: 55 * 184.52,
+            fuelType: 'pms',
+            location: 'Mombasa Depot',
+            fuelStation: 'Shell',
+            isFull: true
+          }
+        ];
+        
+        await Refuel.insertMany(demoRefuels);
         
         return NextResponse.json({
           success: true,
           message: 'Demo fleet created successfully',
           vehicles: createdVehicles
         });
+      }
 
       default:
         return NextResponse.json(
@@ -287,9 +399,9 @@ export async function POST(request) {
         );
     }
   } catch (error) {
-    console.error('Fleet API error:', error);
+    console.error('Fleet API POST error:', error);
     return NextResponse.json(
-      { error: error.message },
+      { error: error.message || 'Internal server error' },
       { status: 500 }
     );
   }
@@ -299,7 +411,7 @@ export async function PUT(request) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -318,7 +430,7 @@ export async function PUT(request) {
       );
     }
 
-    const vehicle = await Fleet.findById(vehicleId);
+    const vehicle = await Vehicle.findById(vehicleId);
     
     if (!vehicle || vehicle.userId.toString() !== session.user.id) {
       return NextResponse.json(
@@ -327,10 +439,16 @@ export async function PUT(request) {
       );
     }
 
-    // Update vehicle fields
-    Object.keys(updates).forEach(key => {
-      if (key !== 'userId' && key !== 'refuels') {
-        vehicle[key] = updates[key];
+    // Update allowed fields
+    const allowedUpdates = [
+      'vehicleNumber', 'vehicleName', 'vehicleType', 'make', 'model', 
+      'year', 'fuelType', 'tankCapacity', 'avgConsumption', 
+      'currentOdometer', 'status', 'notes'
+    ];
+    
+    allowedUpdates.forEach(field => {
+      if (updates[field] !== undefined) {
+        vehicle[field] = updates[field];
       }
     });
 
@@ -342,9 +460,9 @@ export async function PUT(request) {
       vehicle
     });
   } catch (error) {
-    console.error('Fleet API error:', error);
+    console.error('Fleet API PUT error:', error);
     return NextResponse.json(
-      { error: error.message },
+      { error: error.message || 'Internal server error' },
       { status: 500 }
     );
   }
@@ -354,7 +472,7 @@ export async function DELETE(request) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -373,7 +491,7 @@ export async function DELETE(request) {
       );
     }
 
-    const vehicle = await Fleet.findById(vehicleId);
+    const vehicle = await Vehicle.findById(vehicleId);
     
     if (!vehicle || vehicle.userId.toString() !== session.user.id) {
       return NextResponse.json(
@@ -382,16 +500,22 @@ export async function DELETE(request) {
       );
     }
 
-    await Fleet.findByIdAndDelete(vehicleId);
+    // Soft delete - just update status
+    vehicle.status = 'deleted';
+    await vehicle.save();
+    
+    // Or hard delete if preferred:
+    // await Vehicle.findByIdAndDelete(vehicleId);
+    // await Refuel.deleteMany({ vehicleId });
 
     return NextResponse.json({
       success: true,
       message: 'Vehicle deleted successfully'
     });
   } catch (error) {
-    console.error('Fleet API error:', error);
+    console.error('Fleet API DELETE error:', error);
     return NextResponse.json(
-      { error: error.message },
+      { error: error.message || 'Internal server error' },
       { status: 500 }
     );
   }
