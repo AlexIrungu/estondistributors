@@ -44,3 +44,5 @@ next-env.d.ts
 scripts/seedDatabase.js
 src/lib/db/initDemoUsers.js
 src/app/api/init-demo-users/route.js
+# User uploads
+/public/uploads/

@@ -133,7 +133,7 @@ const UserDropdown = ({ session, isOpen, onClose, onLogout }) => {
         <span className="text-sm font-medium text-secondary-900">My Orders</span>
       </Link>
       <Link
-        href="/dashboard?tab=settings"
+        href="/dashboard/profile"
         className="flex items-center gap-3 px-4 py-3 hover:bg-primary-50 transition-colors"
         onClick={onClose}
       >
@@ -237,15 +237,23 @@ const DesktopCTA = ({ session, status, userDropdownOpen, toggleUserDropdown, han
         </Link>
         <div className="relative" ref={userDropdownRef}>
           <button
-            onClick={toggleUserDropdown}
-            className="flex items-center gap-2 px-4 py-2 text-secondary-700 border-2 border-secondary-200 rounded-lg font-medium hover:border-secondary-300 hover:bg-secondary-50 transition-all"
-          >
-            <div className="w-6 h-6 bg-primary-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-              {session.user.name?.charAt(0).toUpperCase() || 'U'}
-            </div>
-            <span className="hidden xl:inline">{session.user.name || 'Account'}</span>
-            <ChevronDown className={`w-4 h-4 transition-transform ${userDropdownOpen ? 'rotate-180' : ''}`} />
-          </button>
+  onClick={toggleUserDropdown}
+  className="flex items-center gap-2 px-4 py-2 text-secondary-700 border-2 border-secondary-200 rounded-lg font-medium hover:border-secondary-300 hover:bg-secondary-50 transition-all"
+>
+  {session.user.image ? (
+    <img 
+      src={session.user.image} 
+      alt={session.user.name}
+      className="w-6 h-6 rounded-full object-cover"
+    />
+  ) : (
+    <div className="w-6 h-6 bg-primary-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+      {session.user.name?.charAt(0).toUpperCase() || 'U'}
+    </div>
+  )}
+  <span className="hidden xl:inline">{session.user.name || 'Account'}</span>
+  <ChevronDown className={`w-4 h-4 transition-transform ${userDropdownOpen ? 'rotate-180' : ''}`} />
+</button>
           <UserDropdown 
             session={session}
             isOpen={userDropdownOpen}
@@ -321,18 +329,26 @@ const MobileMenu = ({
 
           {/* User Info Section - Mobile */}
           {session && (
-            <div className="px-4 py-3 bg-primary-50 border-b border-primary-100">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center text-white font-bold">
-                  {session.user.name?.charAt(0).toUpperCase() || 'U'}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-secondary-900">{session.user.name}</p>
-                  <p className="text-xs text-neutral-600">{session.user.email}</p>
-                </div>
-              </div>
-            </div>
-          )}
+  <div className="px-4 py-3 bg-primary-50 border-b border-primary-100">
+    <div className="flex items-center gap-3">
+      {session.user.image ? (
+        <img 
+          src={session.user.image} 
+          alt={session.user.name}
+          className="w-10 h-10 rounded-full object-cover border-2 border-primary-200"
+        />
+      ) : (
+        <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center text-white font-bold">
+          {session.user.name?.charAt(0).toUpperCase() || 'U'}
+        </div>
+      )}
+      <div className="flex-1">
+        <p className="text-sm font-semibold text-secondary-900">{session.user.name}</p>
+        <p className="text-xs text-neutral-600">{session.user.email}</p>
+      </div>
+    </div>
+  </div>
+)}
 
           {/* Mobile Menu Items */}
           <div className="flex-1 overflow-y-auto py-4">

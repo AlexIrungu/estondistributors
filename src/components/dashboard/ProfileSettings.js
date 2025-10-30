@@ -1,21 +1,25 @@
 // src/components/dashboard/ProfileSettings.js
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { useState, useEffect, useRef } from 'react';
+import { useSession } from 'next-auth/react';
 import { 
   User, Mail, Phone, MapPin, Building, Save, Eye, EyeOff, 
-  CheckCircle, AlertCircle, Lock 
+  CheckCircle, AlertCircle, Lock, Camera, Upload, X, Loader2
 } from 'lucide-react';
 
 export default function ProfileSettings() {
-  const { user } = useAuth();
+  const { data: session, update: updateSession } = useSession();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [error, setError] = useState('');
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
-  const [activeTab, setActiveTab] = useState('profile'); // 'profile' or 'security'
+  const [activeTab, setActiveTab] = useState('profile');
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [profileImage, setProfileImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const fileInputRef = useRef(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -32,16 +36,17 @@ export default function ProfileSettings() {
   });
 
   useEffect(() => {
-    if (user) {
+    if (session?.user) {
       setFormData({
-        name: user.name || '',
-        email: user.email || '',
-        phone: user.phone || '',
-        company: user.company || '',
-        address: user.address || '',
+        name: session.user.name || '',
+        email: session.user.email || '',
+        phone: session.user.phone || '',
+        company: session.user.company || '',
+        address: session.user.address || '',
       });
+      setImagePreview(session.user.image || null);
     }
-  }, [user]);
+  }, [session]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -56,6 +61,68 @@ export default function ProfileSettings() {
     setError('');
   };
 
+  const handleImageSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image size must be less than 5MB');
+      return;
+    }
+
+    setProfileImage(file);
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+    setError('');
+  };
+
+  const handleRemoveImage = () => {
+    setProfileImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const uploadProfileImage = async () => {
+    if (!profileImage) return null;
+
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', profileImage);
+
+      const response = await fetch('/api/profile/image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to upload image');
+      }
+
+      return data.imageUrl;
+    } catch (err) {
+      throw new Error(err.message || 'Failed to upload profile picture');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleSubmitProfile = async (e) => {
     e.preventDefault();
     setError('');
@@ -63,10 +130,19 @@ export default function ProfileSettings() {
     setIsSaved(false);
 
     try {
+      // Upload image first if there's a new one
+      let imageUrl = imagePreview;
+      if (profileImage) {
+        imageUrl = await uploadProfileImage();
+      }
+
       const response = await fetch('/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          image: imageUrl
+        }),
       });
 
       const data = await response.json();
@@ -75,7 +151,17 @@ export default function ProfileSettings() {
         throw new Error(data.error || 'Failed to update profile');
       }
 
+      // Update session with new data
+      await updateSession({
+        ...session,
+        user: {
+          ...session.user,
+          ...data.user
+        }
+      });
+
       setIsSaved(true);
+      setProfileImage(null);
       setTimeout(() => setIsSaved(false), 3000);
     } catch (err) {
       setError(err.message || 'An error occurred while updating your profile');
@@ -88,7 +174,6 @@ export default function ProfileSettings() {
     e.preventDefault();
     setError('');
     
-    // Validation
     if (passwordData.newPassword.length < 6) {
       setError('New password must be at least 6 characters long');
       return;
@@ -129,6 +214,16 @@ export default function ProfileSettings() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   return (
@@ -194,6 +289,55 @@ export default function ProfileSettings() {
       {/* Profile Tab */}
       {activeTab === 'profile' && (
         <form onSubmit={handleSubmitProfile} className="p-6 space-y-6">
+          {/* Profile Picture Section */}
+          <div className="flex flex-col items-center pb-6 border-b border-neutral-200">
+            <div className="relative group">
+              {imagePreview ? (
+                <div className="relative">
+                  <img
+                    src={imagePreview}
+                    alt="Profile"
+                    className="w-32 h-32 rounded-full object-cover border-4 border-primary-100"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors shadow-lg"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="w-32 h-32 rounded-full bg-primary-500 flex items-center justify-center text-white text-3xl font-bold border-4 border-primary-100">
+                  {getInitials(formData.name)}
+                </div>
+              )}
+              
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute bottom-0 right-0 w-10 h-10 bg-primary-500 text-white rounded-full flex items-center justify-center hover:bg-primary-600 transition-colors shadow-lg border-4 border-white"
+              >
+                <Camera className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageSelect}
+              className="hidden"
+            />
+            
+            <p className="mt-4 text-sm text-neutral-600 text-center">
+              Click the camera icon to upload a profile picture
+            </p>
+            <p className="text-xs text-neutral-500 text-center mt-1">
+              JPG, PNG or GIF. Max size 5MB
+            </p>
+          </div>
+
           {/* Name */}
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-secondary-900 mb-2">
@@ -293,11 +437,20 @@ export default function ProfileSettings() {
           <div className="flex justify-end pt-4 border-t border-neutral-200">
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || uploadingImage}
               className="flex items-center gap-2 px-6 py-3 bg-primary-500 text-white rounded-lg font-semibold hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Save className="w-5 h-5" />
-              <span>{isLoading ? 'Saving...' : 'Save Changes'}</span>
+              {isLoading || uploadingImage ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>{uploadingImage ? 'Uploading...' : 'Saving...'}</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-5 h-5" />
+                  <span>Save Changes</span>
+                </>
+              )}
             </button>
           </div>
         </form>
