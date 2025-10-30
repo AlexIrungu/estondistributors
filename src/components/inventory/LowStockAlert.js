@@ -1,4 +1,5 @@
 'use client'
+
 import { useState, useEffect } from 'react';
 import { AlertTriangle, X, Bell, Package, MapPin } from 'lucide-react';
 import { getLowStockAlerts, formatQuantity } from '@/lib/db/inventoryStorage';
