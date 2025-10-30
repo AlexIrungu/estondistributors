@@ -1,31 +1,93 @@
 // src/app/api/prices/route.js
 import { NextResponse } from 'next/server';
+import { getEPRAPrices, clearEPRACache, getEPRACacheStatus } from '@/lib/services/epraScraper';
 
-// Enable dynamic rendering for this route
 export const dynamic = 'force-dynamic';
+
+// Fallback data in case EPRA scraping fails completely
+const FALLBACK_PRICES = {
+  lastUpdated: new Date().toISOString(),
+  effectiveDate: '15th January 2025 to 14th February 2025',
+  source: 'Cached Fallback Data',
+  locations: {
+    mombasa: {
+      name: 'Mombasa',
+      prices: {
+        pms: { price: 181.24, change: -0.43, trend: 'down', label: 'Super Petrol', unit: 'KES/Litre' },
+        ago: { price: 168.19, change: -0.07, trend: 'down', label: 'Diesel', unit: 'KES/Litre' },
+        ik: { price: 151.49, change: -0.53, trend: 'down', label: 'Kerosene', unit: 'KES/Litre' }
+      }
+    },
+    nairobi: {
+      name: 'Nairobi',
+      prices: {
+        pms: { price: 184.52, change: -0.43, trend: 'down', label: 'Super Petrol', unit: 'KES/Litre' },
+        ago: { price: 171.47, change: -0.06, trend: 'down', label: 'Diesel', unit: 'KES/Litre' },
+        ik: { price: 154.78, change: -0.51, trend: 'down', label: 'Kerosene', unit: 'KES/Litre' }
+      }
+    },
+    nakuru: {
+      name: 'Nakuru',
+      prices: {
+        pms: { price: 183.56, change: -0.43, trend: 'down', label: 'Super Petrol', unit: 'KES/Litre' },
+        ago: { price: 170.87, change: -0.06, trend: 'down', label: 'Diesel', unit: 'KES/Litre' },
+        ik: { price: 154.21, change: -0.52, trend: 'down', label: 'Kerosene', unit: 'KES/Litre' }
+      }
+    },
+    eldoret: {
+      name: 'Eldoret',
+      prices: {
+        pms: { price: 184.38, change: -0.43, trend: 'down', label: 'Super Petrol', unit: 'KES/Litre' },
+        ago: { price: 171.68, change: -0.07, trend: 'down', label: 'Diesel', unit: 'KES/Litre' },
+        ik: { price: 155.03, change: -0.51, trend: 'down', label: 'Kerosene', unit: 'KES/Litre' }
+      }
+    },
+    kisumu: {
+      name: 'Kisumu',
+      prices: {
+        pms: { price: 184.37, change: -0.43, trend: 'down', label: 'Super Petrol', unit: 'KES/Litre' },
+        ago: { price: 171.68, change: -0.06, trend: 'down', label: 'Diesel', unit: 'KES/Litre' },
+        ik: { price: 155.03, change: -0.51, trend: 'down', label: 'Kerosene', unit: 'KES/Litre' }
+      }
+    }
+  }
+};
 
 /**
  * GET /api/prices
- * Returns current fuel prices for all locations
+ * Returns current fuel prices from EPRA (with fallback)
  * 
  * Query params:
  * - location: Filter by specific location (optional)
  * - fuelType: Filter by fuel type (pms, ago, ik) (optional)
+ * - refresh: 'true' to force cache refresh (optional)
+ * - status: 'true' to get cache status instead of prices (optional)
  */
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const location = searchParams.get('location');
     const fuelType = searchParams.get('fuelType');
+    const forceRefresh = searchParams.get('refresh') === 'true';
+    const getStatus = searchParams.get('status') === 'true';
     
-    // Validate location parameter if provided
+    // Return cache status if requested
+    if (getStatus) {
+      const cacheStatus = getEPRACacheStatus();
+      return NextResponse.json({
+        cacheStatus,
+        timestamp: new Date().toISOString()
+      }, { status: 200 });
+    }
+    
+    // Validate location parameter
     if (location) {
       const validLocations = ['nairobi', 'mombasa', 'nakuru', 'eldoret', 'kisumu'];
       if (!validLocations.includes(location.toLowerCase())) {
         return NextResponse.json(
           { 
             error: 'Invalid location parameter',
-            validLocations: validLocations,
+            validLocations,
             received: location
           },
           { status: 400 }
@@ -33,14 +95,14 @@ export async function GET(request) {
       }
     }
 
-    // Validate fuelType parameter if provided
+    // Validate fuelType parameter
     if (fuelType) {
       const validFuelTypes = ['pms', 'ago', 'ik'];
       if (!validFuelTypes.includes(fuelType.toLowerCase())) {
         return NextResponse.json(
           { 
             error: 'Invalid fuelType parameter',
-            validFuelTypes: validFuelTypes,
+            validFuelTypes,
             received: fuelType
           },
           { status: 400 }
@@ -48,71 +110,57 @@ export async function GET(request) {
       }
     }
 
-    // EPRA prices data with realistic changes
-    const EPRA_PRICES = {
-      lastUpdated: new Date().toISOString(),
-      effectiveDate: `${new Date().toISOString().split('T')[0]} to ${new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}`,
-      source: 'EPRA Kenya',
-      locations: {
-        mombasa: {
-          name: 'Mombasa',
-          prices: {
-            pms: { price: 181.24, change: 0.25, label: 'Super Petrol', unit: 'KES/Litre' },
-            ago: { price: 168.19, change: -0.15, label: 'Diesel', unit: 'KES/Litre' },
-            ik: { price: 151.49, change: 0.10, label: 'Kerosene', unit: 'KES/Litre' }
-          }
-        },
-        nairobi: {
-          name: 'Nairobi',
-          prices: {
-            pms: { price: 184.52, change: 0.30, label: 'Super Petrol', unit: 'KES/Litre' },
-            ago: { price: 171.47, change: -0.20, label: 'Diesel', unit: 'KES/Litre' },
-            ik: { price: 154.78, change: 0.05, label: 'Kerosene', unit: 'KES/Litre' }
-          }
-        },
-        nakuru: {
-          name: 'Nakuru',
-          prices: {
-            pms: { price: 183.56, change: 0.18, label: 'Super Petrol', unit: 'KES/Litre' },
-            ago: { price: 170.87, change: -0.12, label: 'Diesel', unit: 'KES/Litre' },
-            ik: { price: 154.21, change: 0.08, label: 'Kerosene', unit: 'KES/Litre' }
-          }
-        },
-        eldoret: {
-          name: 'Eldoret',
-          prices: {
-            pms: { price: 184.38, change: 0.22, label: 'Super Petrol', unit: 'KES/Litre' },
-            ago: { price: 171.68, change: -0.18, label: 'Diesel', unit: 'KES/Litre' },
-            ik: { price: 155.03, change: 0.12, label: 'Kerosene', unit: 'KES/Litre' }
-          }
-        },
-        kisumu: {
-          name: 'Kisumu',
-          prices: {
-            pms: { price: 184.37, change: 0.20, label: 'Super Petrol', unit: 'KES/Litre' },
-            ago: { price: 171.68, change: -0.15, label: 'Diesel', unit: 'KES/Litre' },
-            ik: { price: 155.03, change: 0.07, label: 'Kerosene', unit: 'KES/Litre' }
-          }
-        }
-      }
-    };
+    // Try to get EPRA prices
+    let priceData;
+    let dataSource = 'epra';
+    let metadata = {};
     
-    let responseData = { ...EPRA_PRICES };
+    try {
+      const epraResult = await getEPRAPrices(forceRefresh);
+      
+      if (epraResult.success) {
+        priceData = epraResult.data;
+        metadata = {
+          cached: epraResult.cached || false,
+          stale: epraResult.stale || false,
+          cacheAge: epraResult.cacheAge,
+          note: epraResult.note
+        };
+        console.log('Successfully fetched EPRA prices');
+      } else {
+        throw new Error('EPRA scraping failed: ' + epraResult.error);
+      }
+    } catch (error) {
+      console.warn('EPRA fetch failed, using fallback:', error.message);
+      priceData = FALLBACK_PRICES;
+      dataSource = 'fallback';
+      metadata = {
+        warning: 'Using fallback data due to EPRA scraping failure',
+        error: error.message
+      };
+    }
+
+    let responseData = { 
+      ...priceData,
+      dataSource,
+      timestamp: new Date().toISOString(),
+      ...metadata
+    };
 
     // Filter by location if specified
     if (location) {
       const locationKey = location.toLowerCase();
-      const locationData = EPRA_PRICES.locations[locationKey];
+      const locationData = priceData.locations[locationKey];
       
       if (!locationData) {
         return NextResponse.json(
-          { error: 'Location data not found' },
+          { error: 'Location data not found', location: locationKey },
           { status: 404 }
         );
       }
       
       responseData = {
-        ...EPRA_PRICES,
+        ...responseData,
         locations: {
           [locationKey]: locationData
         }
@@ -136,7 +184,6 @@ export async function GET(request) {
         }
       });
       
-      // If no locations have the requested fuel type
       if (Object.keys(filteredLocations).length === 0) {
         return NextResponse.json(
           { error: `Fuel type '${fuelType}' not found in any location` },
@@ -150,11 +197,17 @@ export async function GET(request) {
       };
     }
     
+    // Set cache headers based on data source
+    const cacheControl = dataSource === 'epra' 
+      ? 'public, s-maxage=43200, stale-while-revalidate=86400' // 12 hours, stale for 24 hours
+      : 'public, s-maxage=3600, stale-while-revalidate=7200'; // 1 hour for fallback
+    
     return NextResponse.json(responseData, {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300'
+        'Cache-Control': cacheControl,
+        'X-Data-Source': dataSource
       }
     });
     
@@ -167,23 +220,17 @@ export async function GET(request) {
         message: error.message,
         timestamp: new Date().toISOString()
       },
-      { 
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
+      { status: 500 }
     );
   }
 }
 
 /**
  * POST /api/prices
- * Update prices (admin only - would require authentication in production)
+ * Admin endpoint to manually refresh EPRA cache
  */
 export async function POST(request) {
   try {
-    // Check content type
     const contentType = request.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
       return NextResponse.json(
@@ -194,45 +241,43 @@ export async function POST(request) {
 
     const body = await request.json();
     
-    // Basic validation
-    if (!body || typeof body !== 'object') {
-      return NextResponse.json(
-        { error: 'Invalid JSON body' },
-        { status: 400 }
-      );
+    // Check for admin action
+    if (body.action === 'refresh') {
+      console.log('Manual cache refresh requested');
+      clearEPRACache();
+      
+      const result = await getEPRAPrices(true);
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Cache refreshed',
+        data: result,
+        timestamp: new Date().toISOString()
+      }, { status: 200 });
+    }
+    
+    if (body.action === 'clear') {
+      clearEPRACache();
+      return NextResponse.json({
+        success: true,
+        message: 'Cache cleared',
+        timestamp: new Date().toISOString()
+      }, { status: 200 });
     }
 
-    // In production, this would:
-    // 1. Verify admin authentication
-    // 2. Validate the price data
-    // 3. Update the database
-    // 4. Clear caches
-    // 5. Send notifications if needed
-
-    // Simulate processing delay
-    await new Promise(resolve => setTimeout(resolve, 100));
-
+    // In production, this would handle manual price updates
     return NextResponse.json({
-      success: true,
-      message: 'Prices update endpoint (requires admin authentication)',
-      received: body,
-      timestamp: new Date().toISOString(),
-      note: 'This is a demo endpoint. In production, this would update the database.'
-    }, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+      success: false,
+      message: 'Invalid action. Use "refresh" or "clear"',
+      received: body
+    }, { status: 400 });
     
   } catch (error) {
     console.error('Error in POST /api/prices:', error);
-    
     return NextResponse.json(
       { 
         error: 'Failed to process request',
-        message: error.message,
-        timestamp: new Date().toISOString()
+        message: error.message
       },
       { status: 500 }
     );
