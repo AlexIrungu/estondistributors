@@ -1,10 +1,8 @@
 // src/app/api/auth/forgot-password/route.js
 import { NextResponse } from 'next/server';
-import { getUserByEmail } from '@/lib/db/userStorage';
 import crypto from 'crypto';
-
-// In production, you'd store these in a database
-const resetTokens = new Map();
+import connectDB from '@/lib/db/mongodb';
+import User from '@/lib/db/models/User';
 
 export async function POST(request) {
   try {
@@ -17,8 +15,11 @@ export async function POST(request) {
       );
     }
 
-    // Check if user exists
-    const user = getUserByEmail(email);
+    // Connect to database
+    await connectDB();
+
+    // Find user
+    const user = await User.findByEmail(email);
     
     if (!user) {
       // Don't reveal if email exists for security
@@ -29,27 +30,33 @@ export async function POST(request) {
     }
 
     // Generate reset token
-    const token = crypto.randomBytes(32).toString('hex');
-    const expires = Date.now() + 3600000; // 1 hour
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
 
-    // Store token (in production, save to database)
-    resetTokens.set(token, {
-      email,
-      expires
-    });
+    // Save token to user (expires in 1 hour)
+    user.resetPasswordToken = hashedToken;
+    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+    await user.save();
 
     // In production, send email with reset link
-    // await sendPasswordResetEmail(email, token);
+    const resetUrl = `${process.env.NEXTAUTH_URL}/reset-password?token=${resetToken}`;
     
-    console.log('Password reset token:', token);
-    console.log('Reset link would be:', `${process.env.NEXTAUTH_URL}/reset-password?token=${token}`);
+    console.log('Password reset link:', resetUrl);
+    console.log('Reset token:', resetToken);
+
+    // TODO: Send email with resetUrl
+    // await sendPasswordResetEmail(user.email, resetUrl);
 
     return NextResponse.json({
       success: true,
       message: 'Password reset email sent',
       // Remove in production - only for demo
-      token: process.env.NODE_ENV === 'development' ? token : undefined
+      token: process.env.NODE_ENV === 'development' ? resetToken : undefined
     });
+
   } catch (error) {
     console.error('Forgot password error:', error);
     return NextResponse.json(
@@ -59,7 +66,7 @@ export async function POST(request) {
   }
 }
 
-// Helper to verify reset token
+// Verify reset token
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -72,27 +79,33 @@ export async function GET(request) {
       );
     }
 
-    const tokenData = resetTokens.get(token);
+    // Hash the token to compare with database
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
 
-    if (!tokenData) {
+    // Connect to database
+    await connectDB();
+
+    // Find user with valid token
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'Invalid or expired token' },
         { status: 400 }
       );
     }
 
-    if (Date.now() > tokenData.expires) {
-      resetTokens.delete(token);
-      return NextResponse.json(
-        { success: false, error: 'Token has expired' },
-        { status: 400 }
-      );
-    }
-
     return NextResponse.json({
       success: true,
-      email: tokenData.email
+      email: user.email
     });
+
   } catch (error) {
     console.error('Token verification error:', error);
     return NextResponse.json(

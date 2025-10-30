@@ -5,9 +5,10 @@ import { SessionProvider as NextAuthSessionProvider } from 'next-auth/react';
 
 export default function SessionProvider({ children }) {
   return (
-    <NextAuthSessionProvider 
-      refetchInterval={5 * 60} // Refetch session every 5 minutes
-      refetchOnWindowFocus={true}
+    <NextAuthSessionProvider
+      // Don't auto-fetch session on mount to avoid redirect loops
+      refetchInterval={0}
+      refetchOnWindowFocus={false}
     >
       {children}
     </NextAuthSessionProvider>

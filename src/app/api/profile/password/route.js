@@ -1,47 +1,74 @@
+// src/app/api/profile/password/route.js
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import bcrypt from 'bcryptjs';
-import { updateUser, getUserById } from '@/lib/db/userStorage';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import connectDB from '@/lib/db/mongodb';
+import User from '@/lib/db/models/User';
 
 export async function PATCH(request) {
   try {
-    const session = await getServerSession();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Check authentication
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' }, 
+        { status: 401 }
+      );
     }
 
     const { currentPassword, newPassword } = await request.json();
-    const user = getUserById(session.user.id);
+
+    // Validate input
+    if (!currentPassword || !newPassword) {
+      return NextResponse.json(
+        { error: 'Current password and new password are required' },
+        { status: 400 }
+      );
+    }
+
+    if (newPassword.length < 6) {
+      return NextResponse.json(
+        { error: 'New password must be at least 6 characters' },
+        { status: 400 }
+      );
+    }
+
+    // Connect to database
+    await connectDB();
+
+    // Find user (need password field)
+    const user = await User.findById(session.user.id).select('+password');
 
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'User not found' }, 
+        { status: 404 }
+      );
     }
 
     // Verify current password
-    const isValid = await bcrypt.compare(currentPassword, user.password);
+    const isValid = await user.comparePassword(currentPassword);
     if (!isValid) {
-      return NextResponse.json({ error: 'Current password is incorrect' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Current password is incorrect' },
+        { status: 400 }
+      );
     }
 
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    // Update password
-    const result = updateUser(session.user.id, {
-      password: hashedPassword,
-      updatedAt: new Date().toISOString()
-    });
-
-    if (!result.success) {
-      return NextResponse.json({ error: 'Failed to update password' }, { status: 400 });
-    }
+    // Update password (will be hashed by pre-save hook)
+    user.password = newPassword;
+    await user.save();
 
     return NextResponse.json({
       success: true,
       message: 'Password updated successfully'
     });
+
   } catch (error) {
     console.error('Password update error:', error);
-    return NextResponse.json({ error: 'Failed to update password' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to update password' },
+      { status: 500 }
+    );
   }
 }

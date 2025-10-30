@@ -1,11 +1,8 @@
 // src/app/api/auth/reset-password/route.js
 import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
-import { getUserByEmail, updateUser } from '@/lib/db/userStorage';
-
-// This should match the tokens Map from forgot-password route
-// In production, use a database
-const resetTokens = new Map();
+import crypto from 'crypto';
+import connectDB from '@/lib/db/mongodb';
+import User from '@/lib/db/models/User';
 
 export async function POST(request) {
   try {
@@ -25,57 +22,39 @@ export async function POST(request) {
       );
     }
 
-    // Verify token
-    const tokenData = resetTokens.get(token);
+    // Hash the token to compare with database
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
 
-    if (!tokenData) {
+    // Connect to database
+    await connectDB();
+
+    // Find user with valid token
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'Invalid or expired token' },
         { status: 400 }
       );
     }
 
-    if (Date.now() > tokenData.expires) {
-      resetTokens.delete(token);
-      return NextResponse.json(
-        { success: false, error: 'Token has expired' },
-        { status: 400 }
-      );
-    }
-
-    // Get user
-    const user = getUserByEmail(tokenData.email);
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'User not found' },
-        { status: 404 }
-      );
-    }
-
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Update password
-    const result = updateUser(user.id, {
-      password: hashedPassword,
-      updatedAt: new Date().toISOString()
-    });
-
-    if (!result.success) {
-      return NextResponse.json(
-        { success: false, error: 'Failed to update password' },
-        { status: 500 }
-      );
-    }
-
-    // Delete used token
-    resetTokens.delete(token);
+    // Update password (will be hashed by pre-save hook)
+    user.password = password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
 
     return NextResponse.json({
       success: true,
       message: 'Password reset successfully'
     });
+
   } catch (error) {
     console.error('Password reset error:', error);
     return NextResponse.json(
