@@ -892,37 +892,7 @@ export default function TransportPage() {
         </div>
       </section>
 
-      {/* Emergency Service Highlight */}
-      {/* <section className="py-20 bg-accent-500 text-white relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full -translate-x-1/2 -translate-y-1/2"></div>
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full translate-x-1/2 translate-y-1/2"></div>
-        </div>
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="max-w-4xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md border border-white/30 rounded-full px-4 py-2 mb-6">
-              <Zap className="w-4 h-4" />
-              <span className="text-sm font-semibold">24/7 Emergency Service</span>
-            </div>
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
-              Need Urgent Fuel Delivery?
-            </h2>
-            <p className="text-xl text-white/90 mb-8 leading-relaxed">
-              Our emergency response team is available round-the-clock for urgent fuel delivery needs. Response time under 2 hours within Nairobi.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="inline-flex items-center justify-center gap-2 bg-white text-accent-600 px-8 py-4 rounded-xl text-lg font-semibold hover:bg-neutral-100 transition-all shadow-xl hover:scale-105">
-                <Phone className="h-5 w-5" />
-                Call Emergency Hotline
-              </button>
-              <button className="inline-flex items-center justify-center gap-2 bg-white/10 backdrop-blur-md text-white border-2 border-white/30 px-8 py-4 rounded-xl text-lg font-semibold hover:bg-white/20 transition-all">
-                Learn About Emergency Service
-                <ArrowRight className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </section> */}
+     
 
       {/* CTA Section */}
       <section className="relative py-20 overflow-hidden">
