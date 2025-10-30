@@ -1,14 +1,13 @@
-import { Fuel, Droplet, Zap, Shield, Award, Leaf, Clock } from 'lucide-react';
-import Link from 'next/link';
-import Image from 'next/image';
-import ProductCard from '@/components/ProductCard';
-import InventoryStatus from '@/components/inventory/InventoryStatus';
-import LowStockAlert from '@/components/inventory/LowStockAlert';
+'use client'
+import { Fuel, Droplet, Zap, Shield, Award, Leaf, Clock, Truck, Package, CheckCircle, ArrowRight, MapPin, Users, Wrench } from 'lucide-react';
+import { useState } from 'react';
 
 export default function ProductsPage() {
+  const [activeService, setActiveService] = useState('reselling');
+
   const products = [
     {
-      name: 'Petrol (Gasoline)',
+      name: 'Premium Petrol (PMS)',
       icon: <Fuel className="h-12 w-12" />,
       description: 'Premium quality unleaded petrol suitable for all gasoline engines. Refined to meet international standards for optimal performance and reliability.',
       features: [
@@ -21,7 +20,8 @@ export default function ProductsPage() {
       ],
       applications: ['Passenger Cars', 'Motorcycles', 'Small Generators', 'Light Commercial Vehicles'],
       image: 'https://images.unsplash.com/photo-1545262810-77515befe149?w=800&q=80',
-      fuelType: 'pms', // Added for inventory
+      fuelType: 'pms',
+      color: 'primary',
     },
     {
       name: 'Super Petrol',
@@ -37,10 +37,11 @@ export default function ProductsPage() {
       ],
       applications: ['High-Performance Vehicles', 'Sports Cars', 'Luxury Vehicles', 'Premium SUVs'],
       image: 'https://images.unsplash.com/photo-1485463611174-f302f6a5c1c9?w=800&q=80',
-      fuelType: 'pms', // Same as regular petrol in inventory
+      fuelType: 'pms',
+      color: 'accent',
     },
     {
-      name: 'Diesel',
+      name: 'Diesel (AGO)',
       icon: <Droplet className="h-12 w-12" />,
       description: 'Reliable diesel fuel formulated for heavy-duty vehicles and industrial equipment. Engineered for durability, efficiency, and cold weather performance.',
       features: [
@@ -53,8 +54,92 @@ export default function ProductsPage() {
       ],
       applications: ['Heavy-Duty Trucks', 'Buses', 'Construction Equipment', 'Industrial Generators', 'Marine Vessels', 'Agricultural Machinery'],
       image: 'https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?w=800&q=80',
-      fuelType: 'ago', // Added for inventory
+      fuelType: 'ago',
+      color: 'secondary',
     },
+    {
+      name: 'Kerosene (IK)',
+      icon: <Leaf className="h-12 w-12" />,
+      description: 'Clean-burning illuminating kerosene ideal for lighting, heating, and cooking applications. Refined for safety and efficiency in domestic and commercial use.',
+      features: [
+        'Low smoke and odor for indoor use',
+        'Consistent flame quality',
+        'High purity and clean combustion',
+        'Safe for cooking and lighting applications',
+        'Long storage life without degradation',
+        'Economical alternative energy source',
+      ],
+      applications: ['Domestic Lighting', 'Cooking Stoves', 'Space Heaters', 'Agricultural Equipment', 'Emergency Backup'],
+      image: 'https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=800&q=80',
+      fuelType: 'ik',
+      color: 'green',
+    },
+  ];
+
+  const services = [
+    {
+      id: 'reselling',
+      title: 'Fuel Reselling Services',
+      icon: Fuel,
+      description: 'Licensed EPRA distributor supplying petroleum products to businesses and individuals across Kenya',
+      color: 'primary',
+      features: [
+        'Competitive wholesale pricing',
+        'Bulk fuel supply contracts',
+        'Reliable delivery schedules',
+        'Quality assurance & testing',
+        'Flexible credit facilities',
+        'Volume-based discounts'
+      ],
+      benefits: [
+        '24/7 emergency supply',
+        'Real-time inventory tracking',
+        'Dedicated account managers',
+        'Transparent pricing'
+      ]
+    },
+    {
+      id: 'transport',
+      title: 'Fuel Transport & Logistics',
+      icon: Truck,
+      description: 'Professional fuel transportation with modern fleet and comprehensive safety standards',
+      color: 'accent',
+      features: [
+        'Modern tanker fleet',
+        'GPS-tracked deliveries',
+        'Trained & certified drivers',
+        'Full insurance coverage',
+        'Emergency response capability',
+        'Multi-location delivery'
+      ],
+      benefits: [
+        'ISO certified operations',
+        'On-time delivery guarantee',
+        'Safety compliance',
+        'Route optimization'
+      ]
+    },
+    {
+      id: 'storage',
+      title: 'Storage & Distribution',
+      icon: Package,
+      description: 'Secure storage facilities with advanced monitoring and distribution management',
+      color: 'secondary',
+      features: [
+        'Climate-controlled tanks',
+        'Automated inventory system',
+        'Contamination prevention',
+        'Fire safety systems',
+        'Regular quality checks',
+        'Stock rotation management'
+      ],
+      benefits: [
+        'Strategic depot locations',
+        'High capacity storage',
+        'Environmental compliance',
+        'Real-time monitoring'
+      ]
+    }
   ];
 
   const qualityFeatures = [
@@ -65,8 +150,8 @@ export default function ProductsPage() {
     },
     {
       icon: <Award className="h-8 w-8" />,
-      title: 'Certified Excellence',
-      description: 'ISO certified facilities with regular quality audits',
+      title: 'EPRA Licensed',
+      description: 'Fully certified and compliant with all regulatory requirements',
     },
     {
       icon: <Leaf className="h-8 w-8" />,
@@ -80,120 +165,250 @@ export default function ProductsPage() {
     },
   ];
 
-  return (
-    <div>
-      {/* Low Stock Alert Banner - Add at the very top */}
-      <LowStockAlert variant="banner" />
+  const activeServiceData = services.find(s => s.id === activeService);
 
-      {/* Hero Section with Image */}
-      <section className="relative h-[500px] flex items-center justify-center overflow-hidden">
-        <Image
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Hero Section */}
+      <section className="relative h-[600px] flex items-center justify-center overflow-hidden">
+        <img
           src="https://images.unsplash.com/photo-1628745277861-2ec8da33a3ab?w=1920&q=80"
-          alt="Fuel products"
-          fill
-          className="object-cover"
-          priority
-          sizes="100vw"
+          alt="Fuel products and services"
+          className="absolute inset-0 w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-secondary-900/90 via-secondary-800/80 to-secondary-900/70"></div>
+        <div className="absolute inset-0 bg-secondary-900/85"></div>
         
         <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6 animate-fade-in">
-            Premium Fuel Products
+          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-4 py-2 mb-6">
+            <CheckCircle className="w-4 h-4 text-white" />
+            <span className="text-sm font-medium text-white">EPRA Licensed Distributor</span>
+          </div>
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6">
+            Premium Fuels & Services
           </h1>
           <p className="text-xl md:text-2xl text-neutral-100 max-w-3xl mx-auto mb-8 leading-relaxed">
-            Quality petroleum products meeting international standards for all your fuel needs
+            Quality petroleum products and professional distribution services for all your fuel needs
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
-            <Link
-              href="/contact"
-              className="inline-flex items-center gap-2 bg-primary-500 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-primary-600 hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl"
-            >
-              Get a Quote
-              <span className="group-hover:translate-x-1 transition-transform">→</span>
-            </Link>
-            <Link
+            <a
               href="#products"
-              className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md text-white border-2 border-white/30 px-8 py-4 rounded-xl text-lg font-semibold hover:bg-white/20 transition-all duration-300"
+              className="inline-flex items-center gap-2 bg-primary-500 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-primary-600 transition-all shadow-xl"
             >
               View Products
-            </Link>
+              <ArrowRight className="w-5 h-5" />
+            </a>
+            <a
+              href="#services"
+              className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md text-white border-2 border-white/30 px-8 py-4 rounded-xl text-lg font-semibold hover:bg-white/20 transition-all"
+            >
+              Our Services
+            </a>
           </div>
         </div>
       </section>
 
-      {/* Inventory Status Section - NEW */}
-      <section className="py-12 bg-gradient-to-br from-primary-50 to-accent-50">
+      {/* Quick Stats */}
+      <section className="py-12 bg-neutral-50 border-b border-neutral-200">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl md:text-4xl font-bold text-secondary-800 mb-3">
-              Real-Time Stock Availability
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            <div className="text-center">
+              <div className="text-4xl font-bold text-primary-500 mb-2">4</div>
+              <div className="text-sm text-neutral-600 font-medium">Fuel Products</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-accent-500 mb-2">3</div>
+              <div className="text-sm text-neutral-600 font-medium">Core Services</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-secondary-500 mb-2">2</div>
+              <div className="text-sm text-neutral-600 font-medium">Depot Locations</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-green-600 mb-2">24/7</div>
+              <div className="text-sm text-neutral-600 font-medium">Availability</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Products Section */}
+      <section id="products" className="py-20 bg-white">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-secondary-800 mb-4">
+              Our Fuel Products
             </h2>
             <p className="text-lg text-neutral-600 max-w-2xl mx-auto">
-              Check our current inventory levels at both depots
+              Quality petroleum products meeting international standards
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
-            {/* Nairobi Depot */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-neutral-200">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center">
-                  <Fuel className="h-6 w-6 text-primary-600" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-secondary-800">Nairobi Depot</h3>
-                  <p className="text-sm text-neutral-600">Industrial Area</p>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <InventoryStatus locationId="nairobi" fuelType="pms" variant="compact" />
-                <InventoryStatus locationId="nairobi" fuelType="ago" variant="compact" />
-                <InventoryStatus locationId="nairobi" fuelType="ik" variant="compact" />
-              </div>
-            </div>
+          <div className="space-y-16">
+            {products.map((product, index) => (
+              <div
+                key={product.name}
+                className={`flex flex-col ${
+                  index % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'
+                } gap-8 items-center bg-neutral-50 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden`}
+              >
+                {/* Content */}
+                <div className="flex-1 p-8 md:p-12">
+                  <div className={`inline-flex items-center justify-center w-16 h-16 bg-${product.color}-100 text-${product.color}-600 rounded-xl mb-6 shadow-md`}>
+                    {product.icon}
+                  </div>
+                  
+                  <h3 className="text-3xl md:text-4xl font-bold text-secondary-800 mb-4">
+                    {product.name}
+                  </h3>
+                  
+                  <p className="text-lg text-neutral-600 mb-8 leading-relaxed">
+                    {product.description}
+                  </p>
 
-            {/* Mombasa Depot */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-neutral-200">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-accent-100 rounded-xl flex items-center justify-center">
-                  <Fuel className="h-6 w-6 text-accent-600" />
+                  <div className="mb-8">
+                    <h4 className="text-xl font-semibold text-secondary-700 mb-4 flex items-center gap-2">
+                      <span className="w-1 h-6 bg-primary-500 rounded-full"></span>
+                      Key Features
+                    </h4>
+                    <ul className="space-y-3">
+                      {product.features.map((feature, i) => (
+                        <li key={i} className="flex items-start gap-3">
+                          <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                          <span className="text-neutral-700">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h4 className="text-xl font-semibold text-secondary-700 mb-4 flex items-center gap-2">
+                      <span className="w-1 h-6 bg-primary-500 rounded-full"></span>
+                      Applications
+                    </h4>
+                    <div className="flex flex-wrap gap-3">
+                      {product.applications.map((app, i) => (
+                        <span
+                          key={i}
+                          className={`bg-${product.color}-50 border border-${product.color}-200 text-${product.color}-700 px-4 py-2 rounded-full text-sm font-medium`}
+                        >
+                          {app}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-secondary-800">Mombasa Depot</h3>
-                  <p className="text-sm text-neutral-600">Port Reitz</p>
+
+                {/* Image */}
+                <div className="flex-1 w-full h-full relative">
+                  <div className="relative h-80 md:h-[500px] w-full overflow-hidden">
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                    />
+                  </div>
                 </div>
               </div>
-              <div className="space-y-4">
-                <InventoryStatus locationId="mombasa" fuelType="pms" variant="compact" />
-                <InventoryStatus locationId="mombasa" fuelType="ago" variant="compact" />
-                <InventoryStatus locationId="mombasa" fuelType="ik" variant="compact" />
-              </div>
-            </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Services Section */}
+      <section id="services" className="py-20 bg-neutral-50">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-secondary-800 mb-4">
+              Our Services
+            </h2>
+            <p className="text-lg text-neutral-600 max-w-2xl mx-auto">
+              Comprehensive fuel distribution and logistics solutions
+            </p>
           </div>
 
-          {/* Link to full inventory page */}
-          <div className="text-center mt-8">
-            <Link
-              href="/inventory"
-              className="inline-flex items-center gap-2 text-primary-600 font-semibold hover:text-primary-700 transition-colors"
-            >
-              View Detailed Inventory
-              <span className="group-hover:translate-x-1 transition-transform">→</span>
-            </Link>
+          {/* Service Selector */}
+          <div className="flex flex-wrap gap-4 justify-center mb-12">
+            {services.map((service) => (
+              <button
+                key={service.id}
+                onClick={() => setActiveService(service.id)}
+                className={`flex items-center gap-3 px-6 py-4 rounded-xl font-semibold transition-all ${
+                  activeService === service.id
+                    ? 'bg-primary-500 text-white shadow-lg scale-105'
+                    : 'bg-white text-neutral-700 hover:bg-neutral-100 shadow-md'
+                }`}
+              >
+                <service.icon className="w-5 h-5" />
+                {service.title}
+              </button>
+            ))}
+          </div>
+
+          {/* Active Service Detail */}
+          <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-xl border border-neutral-200 overflow-hidden">
+            <div className="p-8 md:p-12">
+              <div className="flex items-start gap-4 mb-8">
+                <div className="w-16 h-16 bg-primary-500 rounded-2xl flex items-center justify-center flex-shrink-0">
+                  <activeServiceData.icon className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-3xl font-bold text-secondary-900 mb-3">
+                    {activeServiceData.title}
+                  </h3>
+                  <p className="text-lg text-neutral-600">
+                    {activeServiceData.description}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-8">
+                {/* Features */}
+                <div>
+                  <h4 className="text-xl font-bold text-secondary-900 mb-4">
+                    Service Features
+                  </h4>
+                  <ul className="space-y-3">
+                    {activeServiceData.features.map((feature, i) => (
+                      <li key={i} className="flex items-start gap-3">
+                        <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                        <span className="text-neutral-700">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Benefits */}
+                <div>
+                  <h4 className="text-xl font-bold text-secondary-900 mb-4">
+                    Key Benefits
+                  </h4>
+                  <div className="space-y-4">
+                    {activeServiceData.benefits.map((benefit, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center gap-3 bg-primary-50 p-4 rounded-xl border border-primary-200"
+                      >
+                        <div className="w-2 h-2 bg-primary-500 rounded-full flex-shrink-0"></div>
+                        <span className="font-medium text-neutral-800">{benefit}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Quality Features */}
-      <section className="py-16 bg-neutral-50">
+      <section className="py-20 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-secondary-800 mb-4">
-              Why Choose Our Products
+              Why Choose Eston Distributors
             </h2>
             <p className="text-lg text-neutral-600 max-w-2xl mx-auto">
-              We maintain the highest standards in fuel quality and service delivery
+              Your trusted partner in fuel supply and distribution
             </p>
           </div>
           
@@ -201,7 +416,7 @@ export default function ProductsPage() {
             {qualityFeatures.map((feature, index) => (
               <div
                 key={index}
-                className="bg-white p-6 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-2"
+                className="bg-neutral-50 p-6 rounded-2xl border border-neutral-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
               >
                 <div className="w-16 h-16 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center mb-4">
                   {feature.icon}
@@ -218,131 +433,34 @@ export default function ProductsPage() {
         </div>
       </section>
 
-      {/* Products Grid */}
-      <section id="products" className="py-20 bg-white">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-secondary-800 mb-4">
-              Our Product Range
-            </h2>
-            <p className="text-lg text-neutral-600 max-w-2xl mx-auto">
-              Comprehensive fuel solutions for every vehicle and application
-            </p>
-          </div>
-          
-          <div className="space-y-16">
-            {products.map((product, index) => (
-              <div key={product.name} className="relative">
-                <ProductCard product={product} index={index} />
-                
-                {/* Add simple inventory badge below each product */}
-                <div className="mt-4 flex justify-center gap-4">
-                  <div className="inline-flex items-center gap-2 bg-neutral-50 px-4 py-2 rounded-lg border border-neutral-200">
-                    <span className="text-sm font-medium text-neutral-700">Nairobi:</span>
-                    <InventoryStatus locationId="nairobi" fuelType={product.fuelType} variant="simple" />
-                  </div>
-                  <div className="inline-flex items-center gap-2 bg-neutral-50 px-4 py-2 rounded-lg border border-neutral-200">
-                    <span className="text-sm font-medium text-neutral-700">Mombasa:</span>
-                    <InventoryStatus locationId="mombasa" fuelType={product.fuelType} variant="simple" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* About Our Quality Section */}
-      <section className="py-20 bg-neutral-50">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="relative h-96 md:h-[500px] rounded-2xl overflow-hidden shadow-2xl">
-              <Image
-                src="https://images.unsplash.com/photo-1707991131382-b82e0abca0a5?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8cXVhbGl0eSUyMGNvbnRyb2wlMjBmdWVsfGVufDB8fDB8fHww&auto=format&fit=crop&q=60&w=500"
-                alt="Quality control"
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 100vw, 50vw"
-              />
-            </div>
-            
-            <div>
-              <h2 className="text-4xl md:text-5xl font-bold text-secondary-800 mb-6">
-                Committed to Quality & Safety
-              </h2>
-              <p className="text-lg text-neutral-700 mb-6 leading-relaxed">
-                Our state-of-the-art facilities and rigorous quality control processes ensure that every liter of fuel meets the highest industry standards. We invest in continuous testing and quality assurance to deliver products you can trust.
-              </p>
-              <p className="text-lg text-neutral-700 mb-8 leading-relaxed">
-                From refinery to pump, we maintain a complete quality assurance chain, ensuring consistency, purity, and performance in every product we supply.
-              </p>
-              <ul className="space-y-4">
-                <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 bg-primary-500 text-white rounded-full flex items-center justify-center text-sm font-bold mt-0.5">
-                    ✓
-                  </span>
-                  <span className="text-neutral-700">ISO 9001:2015 certified quality management system</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 bg-primary-500 text-white rounded-full flex items-center justify-center text-sm font-bold mt-0.5">
-                    ✓
-                  </span>
-                  <span className="text-neutral-700">Regular third-party audits and testing</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 bg-primary-500 text-white rounded-full flex items-center justify-center text-sm font-bold mt-0.5">
-                    ✓
-                  </span>
-                  <span className="text-neutral-700">Advanced laboratory testing at every stage</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* CTA Section */}
-      <section className="relative py-20 overflow-hidden">
-        <Image
-          src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=1920&q=80"
-          alt="Contact us"
-          fill
-          className="object-cover"
-          sizes="100vw"
-        />
-        <div className="absolute inset-0 bg-secondary-900/85"></div>
+      <section className="relative py-20 overflow-hidden bg-secondary-800">
+        <div className="absolute inset-0 opacity-10">
+          <img
+            src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=1920&q=80"
+            alt="Contact"
+            className="w-full h-full object-cover"
+          />
+        </div>
         
         <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-            Need Bulk Orders or Regular Supply?
+            Ready to Partner With Us?
           </h2>
           <p className="text-xl text-neutral-200 max-w-3xl mx-auto mb-10 leading-relaxed">
-            We offer competitive pricing for bulk purchases, flexible payment terms, and reliable supply contracts tailored to your business needs
+            Get competitive pricing, reliable supply, and professional service for your fuel needs
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
-            <Link
-              href="/contact"
-              className="inline-flex items-center gap-2 bg-primary-500 text-white px-10 py-5 rounded-xl text-lg font-semibold hover:bg-primary-600 hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl"
-            >
+            <button className="inline-flex items-center gap-2 bg-primary-500 text-white px-10 py-5 rounded-xl text-lg font-semibold hover:bg-primary-600 transition-all shadow-xl">
               Request a Quote
-              <span className="group-hover:translate-x-1 transition-transform">→</span>
-            </Link>
-            <Link
-              href="/transport"
-              className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md text-white border-2 border-white/30 px-10 py-5 rounded-xl text-lg font-semibold hover:bg-white/20 transition-all duration-300"
-            >
-              View Transport Options
-            </Link>
+              <ArrowRight className="w-5 h-5" />
+            </button>
+            <button className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md text-white border-2 border-white/30 px-10 py-5 rounded-xl text-lg font-semibold hover:bg-white/20 transition-all">
+              Contact Sales
+            </button>
           </div>
         </div>
       </section>
-
-      {/* SVG Wave Divider */}
-      <div className="bg-white">
-        <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
-          <path d="M0 0L60 10C120 20 240 40 360 46.7C480 53 600 47 720 43.3C840 40 960 40 1080 46.7C1200 53 1320 67 1380 73.3L1440 80V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0V0Z" fill="#1a365d"/>
-        </svg>
-      </div>
     </div>
   );
 }
