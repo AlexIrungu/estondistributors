@@ -123,52 +123,67 @@ export default function ProfileSettings() {
     }
   };
 
-  const handleSubmitProfile = async (e) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-    setIsSaved(false);
+  // Update this section in your ProfileSettings.js handleSubmitProfile function
+// Replace the updateSession call with this:
 
-    try {
-      // Upload image first if there's a new one
-      let imageUrl = imagePreview;
-      if (profileImage) {
-        imageUrl = await uploadProfileImage();
-      }
+const handleSubmitProfile = async (e) => {
+  e.preventDefault();
+  setError('');
+  setIsLoading(true);
+  setIsSaved(false);
 
-      const response = await fetch('/api/profile', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          image: imageUrl
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to update profile');
-      }
-
-      // Update session with new data
-      await updateSession({
-        ...session,
-        user: {
-          ...session.user,
-          ...data.user
-        }
-      });
-
-      setIsSaved(true);
-      setProfileImage(null);
-      setTimeout(() => setIsSaved(false), 3000);
-    } catch (err) {
-      setError(err.message || 'An error occurred while updating your profile');
-    } finally {
-      setIsLoading(false);
+  try {
+    // Upload image first if there's a new one
+    let imageUrl = imagePreview;
+    if (profileImage) {
+      imageUrl = await uploadProfileImage();
     }
-  };
+
+    const response = await fetch('/api/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...formData,
+        image: imageUrl
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to update profile');
+    }
+
+    // Update session with ALL fields from the response
+    await updateSession({
+      user: {
+        id: session.user.id,
+        role: session.user.role,
+        email: data.user.email,
+        name: data.user.name,
+        phone: data.user.phone || '',
+        company: data.user.company || '',
+        address: data.user.address || '',
+        image: data.user.image || null,
+      }
+    });
+
+    console.log('✅ Session updated with image:', data.user.image);
+
+    setIsSaved(true);
+    setProfileImage(null);
+    
+    // Optional: Force a page reload to ensure everything updates
+    // Uncomment if needed:
+    // setTimeout(() => window.location.reload(), 1000);
+    
+    setTimeout(() => setIsSaved(false), 3000);
+  } catch (err) {
+    setError(err.message || 'An error occurred while updating your profile');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleSubmitPassword = async (e) => {
     e.preventDefault();

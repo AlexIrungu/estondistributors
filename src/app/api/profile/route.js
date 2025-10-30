@@ -35,6 +35,8 @@ export async function GET(request) {
       name: user.name,
       phone: user.phone,
       company: user.company,
+      address: user.profile?.deliveryAddress || '',
+      image: user.image, // Include image
       role: user.role,
       profile: user.profile,
       stats: user.stats,
@@ -68,7 +70,7 @@ export async function PATCH(request) {
     }
 
     const body = await request.json();
-    const { name, email, phone, company, address, profile } = body;
+    const { name, email, phone, company, address, image, profile } = body;
 
     // Validate required fields
     if (!name || !email) {
@@ -116,6 +118,11 @@ export async function PATCH(request) {
     user.phone = phone || user.phone;
     user.company = company || user.company;
     
+    // Update profile image if provided
+    if (image !== undefined) {
+      user.image = image;
+    }
+    
     // Update profile fields if provided
     if (profile) {
       user.profile = {
@@ -131,7 +138,7 @@ export async function PATCH(request) {
 
     await user.save();
 
-    console.log('✅ Profile updated:', user.email);
+    console.log('✅ Profile updated:', user.email, 'Image:', user.image);
 
     // Return user without password
     const userResponse = {
@@ -140,6 +147,8 @@ export async function PATCH(request) {
       name: user.name,
       phone: user.phone,
       company: user.company,
+      address: user.profile?.deliveryAddress || '',
+      image: user.image, // Include image in response
       role: user.role,
       profile: user.profile,
       updatedAt: user.updatedAt

@@ -42,6 +42,12 @@ const authOptions = {
             return null;
           }
 
+          // Check if account is active
+          if (user.status !== 'active') {
+            console.log('❌ Account suspended');
+            return null;
+          }
+
           // Verify password using model method
           const isValid = await user.comparePassword(credentials.password);
           
@@ -50,6 +56,10 @@ const authOptions = {
             return null;
           }
 
+          // Update last login
+          user.lastLogin = new Date();
+          await user.save();
+
           console.log('✅ Authentication successful');
 
           return {
@@ -57,6 +67,10 @@ const authOptions = {
             email: user.email,
             name: user.name,
             role: user.role || 'customer',
+            phone: user.phone || '',
+            company: user.company || '',
+            address: user.profile?.deliveryAddress || '',
+            image: user.image || null,
           };
         } catch (error) {
           console.error('❌ Auth error:', error);
@@ -68,27 +82,43 @@ const authOptions = {
   
   callbacks: {
     async jwt({ token, user, trigger, session }) {
+      // Initial sign in - add all user data to token
       if (user) {
         token.id = user.id;
         token.role = user.role;
         token.email = user.email;
         token.name = user.name;
+        token.phone = user.phone;
+        token.company = user.company;
+        token.address = user.address;
+        token.image = user.image;
       }
       
-      // Handle session updates
-      if (trigger === 'update' && session) {
-        return { ...token, ...session.user };
+      // Handle session updates from client (updateSession)
+      if (trigger === 'update' && session?.user) {
+        // Update token with new session data
+        token.name = session.user.name || token.name;
+        token.email = session.user.email || token.email;
+        token.phone = session.user.phone || token.phone;
+        token.company = session.user.company || token.company;
+        token.address = session.user.address || token.address;
+        token.image = session.user.image !== undefined ? session.user.image : token.image;
       }
       
       return token;
     },
     
     async session({ session, token }) {
+      // Add token data to session
       if (token && session.user) {
         session.user.id = token.id;
         session.user.role = token.role;
         session.user.email = token.email;
         session.user.name = token.name;
+        session.user.phone = token.phone;
+        session.user.company = token.company;
+        session.user.address = token.address;
+        session.user.image = token.image;
       }
       return session;
     },
