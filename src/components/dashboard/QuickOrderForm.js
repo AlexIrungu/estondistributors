@@ -2,15 +2,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { 
   Package, Calendar, MapPin, Loader2, CheckCircle, 
-  AlertCircle, Info, TruckIcon, Tag, ArrowRight, X 
+  AlertCircle, Info, TruckIcon, Tag, ArrowRight, X, Mail 
 } from 'lucide-react';
 import { getCurrentPrices } from '@/lib/priceService';
 import { calculateBulkDiscount } from '@/lib/utils/discountCalculations';
 import { calculateDeliveryCost } from '@/lib/utils/deliveryCalculations';
 
 export default function QuickOrderForm({ onOrderCreated }) {
+  const { data: session } = useSession();
   const [prices, setPrices] = useState([]);
   const [loadingPrices, setLoadingPrices] = useState(true);
   const [formData, setFormData] = useState({
@@ -18,19 +20,18 @@ export default function QuickOrderForm({ onOrderCreated }) {
     quantity: 1000,
     deliveryAddress: '',
     deliveryDate: '',
-    deliveryZone: 'nairobi-cbd', // Default delivery zone
-    urgency: 'standard', // Default urgency
+    deliveryZone: 'nairobi-cbd',
+    urgency: 'standard',
     notes: ''
   });
   const [orderSummary, setOrderSummary] = useState(null);
-  const [status, setStatus] = useState('idle'); // idle, loading, success, error
+  const [status, setStatus] = useState('idle');
   const [message, setMessage] = useState('');
   const [showFullForm, setShowFullForm] = useState(true);
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
     loadPrices();
-    // Set minimum delivery date to tomorrow
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     setFormData(prev => ({
@@ -67,45 +68,42 @@ export default function QuickOrderForm({ onOrderCreated }) {
   };
 
   const calculateOrderSummary = () => {
-  if (!prices.length || !formData.quantity) return;
+    if (!prices.length || !formData.quantity) return;
 
-  const selectedFuel = prices.find(p => p.id === formData.fuelType);
-  if (!selectedFuel) return;
+    const selectedFuel = prices.find(p => p.id === formData.fuelType);
+    if (!selectedFuel) return;
 
-  try {
-    const subtotal = formData.quantity * selectedFuel.price;
-    
-    // ✅ CRITICAL FIX: Pass BOTH parameters to calculateBulkDiscount
-    const discountResult = calculateBulkDiscount(selectedFuel.price, formData.quantity);
-    const discount = discountResult.discountPercentage || 0;
-    const discountAmount = discountResult.totalSavings || 0;
-    
-    // Calculate delivery cost
-    const deliveryCalc = calculateDeliveryCost(
-      formData.deliveryZone,
-      formData.quantity,
-      formData.urgency
-    );
-    
-    const total = subtotal - discountAmount + deliveryCalc.finalDeliveryCost;
+    try {
+      const subtotal = formData.quantity * selectedFuel.price;
+      
+      const discountResult = calculateBulkDiscount(selectedFuel.price, formData.quantity);
+      const discount = discountResult.discountPercentage || 0;
+      const discountAmount = discountResult.totalSavings || 0;
+      
+      const deliveryCalc = calculateDeliveryCost(
+        formData.deliveryZone,
+        formData.quantity,
+        formData.urgency
+      );
+      
+      const total = subtotal - discountAmount + deliveryCalc.finalDeliveryCost;
 
-    setOrderSummary({
-      fuelTypeName: selectedFuel.name,
-      pricePerLiter: selectedFuel.price,
-      subtotal,
-      discount,
-      discountAmount,
-      deliveryCost: deliveryCalc.finalDeliveryCost,
-      deliveryDetails: deliveryCalc,
-      total
-    });
-  } catch (error) {
-    console.error('Error calculating order summary:', error);
-      // Set a fallback summary
+      setOrderSummary({
+        fuelTypeName: selectedFuel.name,
+        pricePerLiter: selectedFuel.price,
+        subtotal,
+        discount,
+        discountAmount,
+        deliveryCost: deliveryCalc.finalDeliveryCost,
+        deliveryDetails: deliveryCalc,
+        total
+      });
+    } catch (error) {
+      console.error('Error calculating order summary:', error);
       const subtotal = formData.quantity * selectedFuel.price;
       const discount = calculateBulkDiscount(formData.quantity);
       const discountAmount = subtotal * (discount / 100);
-      const fallbackDeliveryCost = 2000; // Default delivery cost
+      const fallbackDeliveryCost = 2000;
       
       setOrderSummary({
         fuelTypeName: selectedFuel.name,
@@ -153,63 +151,86 @@ export default function QuickOrderForm({ onOrderCreated }) {
     setMessage('');
 
     try {
-      // Prepare order data matching API expectations
-      // Prepare order data matching Order model schema
+      // Step 1: Save order to database
       const orderData = {
-  fuelType: formData.fuelType,
-  fuelTypeName: orderSummary.fuelTypeName,
-  quantity: formData.quantity,
-  pricePerLiter: orderSummary.pricePerLiter,
-  subtotal: orderSummary.subtotal,
-  totalCost: orderSummary.total, // ✅ Changed from totalAmount
-  deliveryAddress: formData.deliveryAddress,
-  deliveryZone: formData.deliveryZone || 'Zone A',
-  deliveryCost: orderSummary.deliveryCost,
-  deliveryDate: formData.deliveryDate,
-  deliveryTime: 'morning', // ✅ Valid enum value
-  bulkDiscount: orderSummary.discount || 0,
-  bulkDiscountAmount: orderSummary.discountAmount || 0,
-  specialInstructions: formData.notes, // ✅ Changed from notes
-};
+        fuelType: formData.fuelType,
+        fuelTypeName: orderSummary.fuelTypeName,
+        quantity: formData.quantity,
+        pricePerLiter: orderSummary.pricePerLiter,
+        subtotal: orderSummary.subtotal,
+        totalCost: orderSummary.total,
+        deliveryAddress: formData.deliveryAddress,
+        deliveryZone: formData.deliveryZone || 'Zone A',
+        deliveryCost: orderSummary.deliveryCost,
+        deliveryDate: formData.deliveryDate,
+        deliveryTime: 'morning',
+        bulkDiscount: orderSummary.discount || 0,
+        bulkDiscountAmount: orderSummary.discountAmount || 0,
+        specialInstructions: formData.notes,
+      };
 
-      const response = await fetch('/api/orders', {
+      const orderResponse = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(orderData),
       });
 
-      const data = await response.json();
+      const orderResult = await orderResponse.json();
 
-      if (response.ok) {
-        setStatus('success');
-        setMessage(`Order #${data.order?.id || 'NEW'} placed successfully!`);
-        
-        // Reset form
-        setFormData(prev => ({
-          ...prev,
-          quantity: 1000,
-          deliveryAddress: '',
-          notes: ''
-        }));
-        setErrors({});
-
-        // Notify parent to refresh data
-        if (onOrderCreated) {
-          setTimeout(() => onOrderCreated(), 1000);
-        }
-
-        // Reset success message after 5 seconds
-        setTimeout(() => {
-          setStatus('idle');
-          setMessage('');
-        }, 5000);
-      } else {
-        setStatus('error');
-        setMessage(data.error || 'Failed to place order');
+      if (!orderResponse.ok) {
+        throw new Error(orderResult.error || 'Failed to place order');
       }
+
+      // Step 2: Send email notifications (don't block on failure)
+      try {
+        await fetch('/api/orders/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            order: {
+              ...orderData,
+              id: orderResult.order?.id || orderResult.order?._id,
+              status: orderResult.order?.status || 'pending',
+              createdAt: orderResult.order?.createdAt || new Date().toISOString(),
+            },
+            customerEmail: session?.user?.email,
+            customerName: session?.user?.name,
+          }),
+        });
+        
+        setStatus('success');
+        setMessage(`Order #${orderResult.order?.id || 'NEW'} placed successfully! Confirmation email sent.`);
+      } catch (emailError) {
+        console.error('Email notification failed:', emailError);
+        // Still show success since order was saved
+        setStatus('success');
+        setMessage(`Order #${orderResult.order?.id || 'NEW'} placed successfully! (Email notification pending)`);
+      }
+
+      // Reset form
+      setFormData(prev => ({
+        ...prev,
+        quantity: 1000,
+        deliveryAddress: '',
+        notes: ''
+      }));
+      setErrors({});
+
+      // Notify parent to refresh data
+      if (onOrderCreated) {
+        setTimeout(() => onOrderCreated(), 1000);
+      }
+
+      // Reset success message after 5 seconds
+      setTimeout(() => {
+        setStatus('idle');
+        setMessage('');
+      }, 5000);
+
     } catch (error) {
+      console.error('Order submission error:', error);
       setStatus('error');
-      setMessage('Network error. Please try again.');
+      setMessage(error.message || 'Network error. Please try again.');
     }
   };
 
@@ -307,7 +328,10 @@ export default function QuickOrderForm({ onOrderCreated }) {
           <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 flex items-start gap-3 animate-fade-in">
             <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="font-semibold text-green-900">Order Placed Successfully!</p>
+              <p className="font-semibold text-green-900 flex items-center gap-2">
+                Order Placed Successfully!
+                <Mail className="w-4 h-4" />
+              </p>
               <p className="text-green-700 text-sm mt-1">{message}</p>
             </div>
             <button
@@ -566,7 +590,7 @@ export default function QuickOrderForm({ onOrderCreated }) {
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2 mt-4">
               <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
               <p className="text-xs text-blue-800">
-                Price includes all taxes. Payment on delivery. Our team will contact you to confirm the order.
+                Price includes all taxes. You'll receive email confirmation with order tracking number. Payment on delivery.
               </p>
             </div>
           </div>
@@ -598,12 +622,12 @@ export default function QuickOrderForm({ onOrderCreated }) {
             <span>Quality Assured</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-neutral-600">
-            <TruckIcon className="w-4 h-4 text-blue-500" />
-            <span>Fast Delivery</span>
+            <Mail className="w-4 h-4 text-blue-500" />
+            <span>Email Confirmation</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-neutral-600">
-            <CheckCircle className="w-4 h-4 text-primary-500" />
-            <span>24/7 Support</span>
+            <TruckIcon className="w-4 h-4 text-orange-500" />
+            <span>Fast Delivery</span>
           </div>
         </div>
       </form>
