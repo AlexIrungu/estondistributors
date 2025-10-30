@@ -139,7 +139,7 @@ export default function Home() {
             className="object-cover opacity-30"
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-br from-secondary-900/90 via-secondary-900/80 to-primary-900/70"></div>
+          <div className="absolute inset-0 bg-secondary-900"></div>
           
           {/* Animated Background Circles */}
           <div className="absolute top-20 left-10 w-72 h-72 bg-primary-500/10 rounded-full blur-3xl animate-pulse"></div>
@@ -157,7 +157,7 @@ export default function Home() {
             {/* Main Heading */}
             <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight animate-slide-up">
               Powering Kenya with
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-accent-400">
+              <span className="block text-primary-400">
                 Quality Petroleum
               </span>
             </h1>
@@ -254,7 +254,7 @@ export default function Home() {
       </section>
 
       {/* Price Widget Section with Enhanced Design */}
-      <section className="py-20 bg-gradient-to-br from-neutral-50 via-white to-primary-50 relative overflow-hidden">
+      <section className="py-20 bg-neutral-50 relative overflow-hidden">
         {/* Background Decorations */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-primary-100 rounded-full blur-3xl opacity-30"></div>
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-accent-100 rounded-full blur-3xl opacity-30"></div>
@@ -378,7 +378,7 @@ export default function Home() {
           <div className="text-center mt-12">
             <Link
               href="/inventory"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-primary-500 to-accent-500 text-white rounded-xl font-semibold hover:shadow-2xl hover:scale-105 transition-all"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-primary-500 text-white rounded-xl font-semibold hover:shadow-2xl hover:scale-105 transition-all"
             >
               <Package className="h-5 w-5" />
               Check Real-Time Stock Availability
@@ -493,7 +493,7 @@ export default function Home() {
       </section>
 
       {/* Enhanced CTA Section */}
-      <section className="relative py-24 bg-gradient-to-br from-secondary-900 via-secondary-800 to-primary-900 text-white overflow-hidden">
+      <section className="relative py-24 bg-secondary-900 text-white overflow-hidden">
         <div className="absolute inset-0 z-0">
           <Image
             src="https://images.unsplash.com/photo-1474631245212-32dc3c8310c6?w=1920&q=80"
@@ -501,7 +501,7 @@ export default function Home() {
             fill
             className="object-cover opacity-10"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-secondary-900/95 to-primary-900/95"></div>
+          <div className="absolute inset-0 bg-secondary-900/95"></div>
         </div>
 
         {/* Animated Circles */}

@@ -26,16 +26,15 @@ export async function GET(request) {
 
     switch (action) {
       case 'stats': {
-        // Get order statistics
         const orders = await Order.findByCustomer(customerId);
         
         const stats = {
           totalOrders: orders.length,
           pendingOrders: orders.filter(o => o.status === 'pending').length,
-          completedOrders: orders.filter(o => o.status === 'completed').length,
+          completedOrders: orders.filter(o => o.status === 'delivered').length,
           totalSpent: orders
-            .filter(o => o.status === 'completed')
-            .reduce((sum, o) => sum + o.totalAmount, 0),
+            .filter(o => o.status === 'delivered')
+            .reduce((sum, o) => sum + o.totalCost, 0),
           favoriteCount: orders.filter(o => o.isFavorite).length
         };
         
@@ -64,9 +63,9 @@ export async function GET(request) {
         const orders = await Order.findByCustomer(customerId);
         
         const searchResults = orders.filter(order => 
-          order.orderNumber.toLowerCase().includes(query.toLowerCase()) ||
+          order.displayId.toLowerCase().includes(query.toLowerCase()) ||
           order.fuelType.toLowerCase().includes(query.toLowerCase()) ||
-          order.location.toLowerCase().includes(query.toLowerCase())
+          order.deliveryZone.toLowerCase().includes(query.toLowerCase())
         );
         
         return NextResponse.json({ success: true, orders: searchResults });
@@ -83,7 +82,6 @@ export async function GET(request) {
       }
 
       default: {
-        // Get all orders for customer
         const allOrders = await Order.findByCustomer(customerId);
         return NextResponse.json({ success: true, orders: allOrders });
       }
@@ -114,40 +112,63 @@ export async function POST(request) {
     const body = await request.json();
 
     // Validate required fields
-    if (!body.fuelType || !body.quantity || !body.location) {
+    if (!body.fuelType || !body.quantity || !body.deliveryAddress) {
       return NextResponse.json(
-        { error: 'Fuel type, quantity, and location are required' },
+        { error: 'Fuel type, quantity, and delivery address are required' },
         { status: 400 }
       );
     }
 
-    // Create order data
+    // Get user data to access phone number
+    const user = await User.findById(session.user.id);
+    const customerPhone = user?.phone || session.user.phone || '254700000000'; // Fallback
+
+    // Create order data matching Order model schema exactly
     const orderData = {
-      customerId: session.user.id,
-      customerName: session.user.name,
-      customerEmail: session.user.email,
-      fuelType: body.fuelType,
-      quantity: body.quantity,
-      pricePerLiter: body.pricePerLiter || 0,
-      totalAmount: body.totalAmount || (body.quantity * body.pricePerLiter),
-      location: body.location,
-      deliveryAddress: body.deliveryAddress || '',
-      deliveryDate: body.deliveryDate,
-      deliveryTime: body.deliveryTime,
-      notes: body.notes || '',
-      paymentMethod: body.paymentMethod || 'mpesa',
-      status: 'pending'
-    };
+  // Customer Information
+  customerId: session.user.id,
+  customerName: session.user.name,
+  customerEmail: session.user.email,
+  customerPhone: customerPhone, // ✅ Added
+
+  // Order Details
+  fuelType: body.fuelType,
+  fuelTypeName: body.fuelTypeName || body.fuelType.toUpperCase(),
+  quantity: body.quantity,
+  pricePerLiter: body.pricePerLiter || 0,
+  subtotal: body.subtotal || (body.quantity * body.pricePerLiter),
+
+  // Delivery Information
+  deliveryAddress: body.deliveryAddress,
+  deliveryZone: body.deliveryZone || 'Zone A',
+  deliveryCost: body.deliveryCost || 0,
+  deliveryDate: body.deliveryDate,
+  deliveryTime: body.deliveryTime || 'morning', // ✅ Valid enum
+
+  // Discounts
+  bulkDiscount: body.bulkDiscount || 0,
+  bulkDiscountAmount: body.bulkDiscountAmount || 0,
+
+  // Total Cost
+  totalCost: body.totalCost || body.subtotal + body.deliveryCost - body.bulkDiscountAmount, // ✅ Changed from totalAmount
+
+  // Status
+  status: 'pending',
+  paymentMethod: body.paymentMethod || 'mpesa',
+
+  // Notes
+  specialInstructions: body.specialInstructions || '', // ✅ Changed from notes
+};
 
     // Create order
     const order = new Order(orderData);
     await order.save();
 
-    console.log('✅ Order created:', order.orderNumber);
+    console.log('✅ Order created:', order.displayId);
 
     // Update user statistics
-    const user = await User.findById(session.user.id);
     if (user) {
+      user.stats = user.stats || {};
       user.stats.totalOrders = (user.stats.totalOrders || 0) + 1;
       user.stats.lastOrderDate = new Date();
       await user.save();
@@ -161,7 +182,7 @@ export async function POST(request) {
   } catch (error) {
     console.error('Error creating order:', error);
     return NextResponse.json(
-      { error: 'Failed to create order' },
+      { error: error.message || 'Failed to create order' },
       { status: 500 }
     );
   }
