@@ -24,12 +24,16 @@ export default function SpendingAnalytics({ stats }) {
     .sort((a, b) => a.month.localeCompare(b.month))
     .slice(-6); // Last 6 months
 
-  // Prepare fuel type data for pie chart
+  // Prepare fuel type data for pie chart - FIXED: using correct property names
   const fuelTypeData = Object.entries(stats.fuelTypeStats || {}).map(([type, data]) => ({
     name: type === 'pms' ? 'Super Petrol' : type === 'ago' ? 'Diesel' : 'Kerosene',
-    value: data.totalCost,
-    liters: data.totalLiters,
+    value: data.totalSpent || 0,
+    liters: data.totalQuantity || 0, // FIXED: was totalLiters, now totalQuantity
   }));
+
+  // Calculate total liters from all fuel types
+  const totalLiters = Object.values(stats.fuelTypeStats || {})
+    .reduce((sum, data) => sum + (data.totalQuantity || 0), 0);
 
   // Calculate insights
   const avgMonthlySpending = monthlyData.length > 0
@@ -71,7 +75,7 @@ export default function SpendingAnalytics({ stats }) {
               <span className="text-sm font-medium text-green-900">Total Liters</span>
             </div>
             <p className="text-2xl font-bold text-green-900">
-              {stats.totalLiters?.toLocaleString() || 0}
+              {totalLiters.toLocaleString()}
             </p>
           </div>
 

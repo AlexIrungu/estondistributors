@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import {
   Package, Calendar, MapPin, TruckIcon, Filter,
   Search, Star, AlertCircle, Loader2, CheckCircle,
-  Clock, XCircle, Eye, Trash2, Download
+  Clock, XCircle, Eye, Trash2, Download, UserCircle,
+  Phone, Mail, CheckCheck, X, MessageSquare
 } from 'lucide-react';
 
 export default function OrdersPage() {
@@ -18,6 +19,9 @@ export default function OrdersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [stats, setStats] = useState(null);
+  const [updatingOrderId, setUpdatingOrderId] = useState(null);
+
+  const isAdmin = session?.user?.role === 'admin';
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -68,21 +72,50 @@ export default function OrdersPage() {
   const filterOrders = () => {
     let filtered = [...orders];
 
-    // Filter by status
     if (statusFilter !== 'all') {
       filtered = filtered.filter(order => order.status === statusFilter);
     }
 
-    // Filter by search query
     if (searchQuery) {
       filtered = filtered.filter(order =>
         order.displayId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         order.fuelType?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.deliveryAddress?.toLowerCase().includes(searchQuery.toLowerCase())
+        order.deliveryAddress?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.customerEmail?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
     setFilteredOrders(filtered);
+  };
+
+  const updateOrderStatus = async (orderId, newStatus) => {
+    if (!confirm(`Are you sure you want to ${newStatus === 'cancelled' ? 'reject' : 'update'} this order to ${newStatus}?`)) {
+      return;
+    }
+
+    setUpdatingOrderId(orderId);
+    try {
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_status', status: newStatus })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        fetchOrders();
+        fetchStats();
+      } else {
+        alert(data.error || 'Failed to update order');
+      }
+    } catch (error) {
+      console.error('Error updating order:', error);
+      alert('Failed to update order');
+    } finally {
+      setUpdatingOrderId(null);
+    }
   };
 
   const toggleFavorite = async (orderId) => {
@@ -163,8 +196,20 @@ export default function OrdersPage() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-secondary-900 mb-2">My Orders</h1>
-          <p className="text-neutral-600">Track and manage your fuel orders</p>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-3xl font-bold text-secondary-900">
+              {isAdmin ? 'All Orders' : 'My Orders'}
+            </h1>
+            {isAdmin && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary-500 text-white rounded-full text-sm font-semibold">
+                <Star className="w-4 h-4" />
+                Admin
+              </span>
+            )}
+          </div>
+          <p className="text-neutral-600">
+            {isAdmin ? 'Manage and track all customer orders' : 'Track and manage your fuel orders'}
+          </p>
         </div>
 
         {/* Stats Cards */}
@@ -212,7 +257,7 @@ export default function OrdersPage() {
                   <TruckIcon className="w-6 h-6 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-neutral-600">Total Spent</p>
+                  <p className="text-sm text-neutral-600">Total {isAdmin ? 'Revenue' : 'Spent'}</p>
                   <p className="text-2xl font-bold text-secondary-900">
                     KES {stats.totalSpent?.toLocaleString() || 0}
                   </p>
@@ -225,13 +270,12 @@ export default function OrdersPage() {
         {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6 mb-6">
           <div className="flex flex-col sm:flex-row gap-4">
-            {/* Search */}
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
                 <input
                   type="text"
-                  placeholder="Search orders..."
+                  placeholder={isAdmin ? "Search by order, customer, fuel type..." : "Search orders..."}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 border-2 border-neutral-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none"
@@ -239,7 +283,6 @@ export default function OrdersPage() {
               </div>
             </div>
 
-            {/* Status Filter */}
             <div className="sm:w-48">
               <div className="relative">
                 <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
@@ -268,15 +311,19 @@ export default function OrdersPage() {
             <p className="text-neutral-600 mb-6">
               {searchQuery || statusFilter !== 'all'
                 ? 'Try adjusting your filters'
-                : 'Start by placing your first order'}
+                : isAdmin 
+                  ? 'No customer orders yet'
+                  : 'Start by placing your first order'}
             </p>
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
-            >
-              <Package className="w-5 h-5" />
-              Place New Order
-            </button>
+            {!isAdmin && (
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+              >
+                <Package className="w-5 h-5" />
+                Place New Order
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
@@ -285,96 +332,191 @@ export default function OrdersPage() {
                 key={order._id}
                 className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6 hover:shadow-md transition-shadow"
               >
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                  {/* Order Info */}
-                  <div className="flex-1">
-                    <div className="flex items-start gap-4">
-                      <div className="text-4xl">{getFuelIcon(order.fuelType)}</div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-bold text-secondary-900">
-                            {order.displayId || `Order #${order._id?.slice(-8)}`}
-                          </h3>
-                          {getStatusBadge(order.status)}
-                          <button
-                            onClick={() => toggleFavorite(order._id)}
-                            className="ml-auto lg:hidden"
-                          >
-                            <Star
-                              className={`w-5 h-5 ${
-                                order.isFavorite
-                                  ? 'fill-yellow-400 text-yellow-400'
-                                  : 'text-neutral-300'
-                              }`}
-                            />
-                          </button>
-                        </div>
-
-                        <div className="space-y-1.5 text-sm text-neutral-600">
-                          <div className="flex items-center gap-2">
-                            <Package className="w-4 h-4" />
-                            <span className="font-medium">
-                              {order.fuelTypeName || order.fuelType.toUpperCase()}
-                            </span>
-                            <span>• {order.quantity?.toLocaleString()}L</span>
-                            <span>• KES {order.pricePerLiter?.toFixed(2)}/L</span>
+                <div className="flex flex-col gap-4">
+                  {/* Order Header */}
+                  <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-start gap-4">
+                        <div className="text-4xl">{getFuelIcon(order.fuelType)}</div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2 flex-wrap">
+                            <h3 className="text-lg font-bold text-secondary-900">
+                              {order.displayId || `Order #${order._id?.slice(-8)}`}
+                            </h3>
+                            {getStatusBadge(order.status)}
+                            {!isAdmin && (
+                              <button
+                                onClick={() => toggleFavorite(order._id)}
+                                className="lg:hidden"
+                              >
+                                <Star
+                                  className={`w-5 h-5 ${
+                                    order.isFavorite
+                                      ? 'fill-yellow-400 text-yellow-400'
+                                      : 'text-neutral-300'
+                                  }`}
+                                />
+                              </button>
+                            )}
                           </div>
 
-                          <div className="flex items-center gap-2">
-                            <MapPin className="w-4 h-4" />
-                            <span className="line-clamp-1">{order.deliveryAddress}</span>
-                          </div>
+                          <div className="space-y-1.5 text-sm text-neutral-600">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Package className="w-4 h-4" />
+                              <span className="font-medium">
+                                {order.fuelTypeName || order.fuelType.toUpperCase()}
+                              </span>
+                              <span>• {order.quantity?.toLocaleString()}L</span>
+                              <span>• KES {order.pricePerLiter?.toFixed(2)}/L</span>
+                            </div>
 
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4" />
-                            <span>
-                              {new Date(order.deliveryDate).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric'
-                              })}
-                            </span>
-                            <span className="text-neutral-400">•</span>
-                            <span className="capitalize">{order.deliveryTime}</span>
+                            <div className="flex items-center gap-2">
+                              <MapPin className="w-4 h-4" />
+                              <span className="line-clamp-1">{order.deliveryAddress}</span>
+                            </div>
+
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Calendar className="w-4 h-4" />
+                              <span>
+                                {new Date(order.deliveryDate).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                })}
+                              </span>
+                              <span className="text-neutral-400">•</span>
+                              <span className="capitalize">{order.deliveryTime}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Price & Actions */}
-                  <div className="flex items-center gap-4 lg:flex-col lg:items-end">
                     <div className="text-right">
                       <p className="text-sm text-neutral-600 mb-1">Total Amount</p>
                       <p className="text-2xl font-bold text-primary-600">
                         KES {order.totalCost?.toLocaleString()}
                       </p>
                     </div>
+                  </div>
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => toggleFavorite(order._id)}
-                        className="hidden lg:block p-2 hover:bg-neutral-100 rounded-lg transition-colors"
-                      >
-                        <Star
-                          className={`w-5 h-5 ${
-                            order.isFavorite
-                              ? 'fill-yellow-400 text-yellow-400'
-                              : 'text-neutral-300'
-                          }`}
-                        />
-                      </button>
-
-                      {order.status === 'pending' && (
-                        <button
-                          onClick={() => deleteOrder(order._id)}
-                          className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors"
-                          title="Cancel Order"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      )}
+                  {/* Customer Info (Admin Only) */}
+                  {isAdmin && (
+                    <div className="border-t border-neutral-200 pt-4">
+                      <p className="text-xs font-semibold text-neutral-500 uppercase mb-2">Customer Information</p>
+                      <div className="grid sm:grid-cols-3 gap-3 text-sm">
+                        <div className="flex items-center gap-2">
+                          <UserCircle className="w-4 h-4 text-neutral-400" />
+                          <span className="font-medium text-secondary-900">{order.customerName}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Mail className="w-4 h-4 text-neutral-400" />
+                          <span className="text-neutral-600">{order.customerEmail}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Phone className="w-4 h-4 text-neutral-400" />
+                          <span className="text-neutral-600">{order.customerPhone}</span>
+                        </div>
+                      </div>
                     </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="border-t border-neutral-200 pt-4 flex flex-wrap gap-2">
+                    {isAdmin ? (
+                      <>
+                        {order.status === 'pending' && (
+                          <>
+                            <button
+                              onClick={() => updateOrderStatus(order._id, 'confirmed')}
+                              disabled={updatingOrderId === order._id}
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 text-sm font-medium"
+                            >
+                              {updatingOrderId === order._id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <CheckCheck className="w-4 h-4" />
+                              )}
+                              Accept Order
+                            </button>
+                            <button
+                              onClick={() => updateOrderStatus(order._id, 'cancelled')}
+                              disabled={updatingOrderId === order._id}
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 text-sm font-medium"
+                            >
+                              <X className="w-4 h-4" />
+                              Reject Order
+                            </button>
+                          </>
+                        )}
+                        {order.status === 'confirmed' && (
+                          <button
+                            onClick={() => updateOrderStatus(order._id, 'in_transit')}
+                            disabled={updatingOrderId === order._id}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors disabled:opacity-50 text-sm font-medium"
+                          >
+                            {updatingOrderId === order._id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <TruckIcon className="w-4 h-4" />
+                            )}
+                            Mark In Transit
+                          </button>
+                        )}
+                        {order.status === 'in_transit' && (
+                          <button
+                            onClick={() => updateOrderStatus(order._id, 'delivered')}
+                            disabled={updatingOrderId === order._id}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 text-sm font-medium"
+                          >
+                            {updatingOrderId === order._id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <CheckCircle className="w-4 h-4" />
+                            )}
+                            Mark Delivered
+                          </button>
+                        )}
+                        {order.status === 'delivered' && (
+                          <span className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
+                            <CheckCircle className="w-4 h-4" />
+                            Order Completed
+                          </span>
+                        )}
+                        {order.status === 'cancelled' && (
+                          <span className="inline-flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-medium">
+                            <XCircle className="w-4 h-4" />
+                            Order Cancelled
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => toggleFavorite(order._id)}
+                          className="hidden lg:inline-flex items-center gap-2 px-4 py-2 border-2 border-neutral-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors text-sm"
+                        >
+                          <Star
+                            className={`w-4 h-4 ${
+                              order.isFavorite
+                                ? 'fill-yellow-400 text-yellow-400'
+                                : 'text-neutral-400'
+                            }`}
+                          />
+                          {order.isFavorite ? 'Favorited' : 'Add to Favorites'}
+                        </button>
+
+                        {order.status === 'pending' && (
+                          <button
+                            onClick={() => deleteOrder(order._id)}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Cancel Order
+                          </button>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

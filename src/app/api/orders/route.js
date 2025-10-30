@@ -6,7 +6,7 @@ import connectDB from '@/lib/db/mongodb';
 import Order from '@/lib/db/models/Order';
 import User from '@/lib/db/models/User';
 
-// GET - Fetch customer orders
+// GET - Fetch orders (admin sees all, customers see only their own)
 export async function GET(request) {
   try {
     const session = await getServerSession(authOptions);
@@ -22,68 +22,108 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action');
-    const customerId = session.user.id;
+    const isAdmin = session.user.role === 'admin';
+    const customerId = isAdmin ? null : session.user.id;
 
     switch (action) {
       case 'stats': {
-        const orders = await Order.findByCustomer(customerId);
-        
-        const stats = {
-          totalOrders: orders.length,
-          pendingOrders: orders.filter(o => o.status === 'pending').length,
-          completedOrders: orders.filter(o => o.status === 'delivered').length,
-          totalSpent: orders
-            .filter(o => o.status === 'delivered')
-            .reduce((sum, o) => sum + o.totalCost, 0),
-          favoriteCount: orders.filter(o => o.isFavorite).length
-        };
-        
+        // Admin gets all stats, customers get only their stats
+        const stats = await Order.getStats(customerId);
         return NextResponse.json({ success: true, stats });
       }
 
       case 'recent': {
         const limit = parseInt(searchParams.get('limit') || '5');
-        const orders = await Order.findByCustomer(customerId);
-        const recent = orders
-          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-          .slice(0, limit);
+        let orders;
         
-        return NextResponse.json({ success: true, orders: recent });
+        if (isAdmin) {
+          // Admin sees all recent orders
+          orders = await Order.findAll(limit);
+        } else {
+          // Customer sees only their recent orders
+          orders = await Order.findByCustomer(customerId);
+          orders = orders.slice(0, limit);
+        }
+        
+        // Transform orders to include displayId
+        const transformedOrders = orders.map(order => ({
+          ...order.toObject(),
+          displayId: order.displayId,
+          id: order._id.toString()
+        }));
+        
+        return NextResponse.json({ success: true, orders: transformedOrders });
       }
 
       case 'favorites': {
-        const orders = await Order.findByCustomer(customerId);
-        const favorites = orders.filter(o => o.isFavorite);
+        // Only customers have favorites
+        if (isAdmin) {
+          return NextResponse.json({ 
+            success: true, 
+            orders: [],
+            message: 'Favorites not available for admin' 
+          });
+        }
         
-        return NextResponse.json({ success: true, orders: favorites });
+        const orders = await Order.findFavorites(customerId);
+        const transformedOrders = orders.map(order => ({
+          ...order.toObject(),
+          displayId: order.displayId,
+          id: order._id.toString()
+        }));
+        
+        return NextResponse.json({ success: true, orders: transformedOrders });
       }
 
       case 'search': {
         const query = searchParams.get('query') || '';
-        const orders = await Order.findByCustomer(customerId);
+        const orders = await Order.searchOrders(query, customerId);
         
-        const searchResults = orders.filter(order => 
-          order.displayId.toLowerCase().includes(query.toLowerCase()) ||
-          order.fuelType.toLowerCase().includes(query.toLowerCase()) ||
-          order.deliveryZone.toLowerCase().includes(query.toLowerCase())
-        );
+        const transformedOrders = orders.map(order => ({
+          ...order.toObject(),
+          displayId: order.displayId,
+          id: order._id.toString()
+        }));
         
-        return NextResponse.json({ success: true, orders: searchResults });
+        return NextResponse.json({ success: true, orders: transformedOrders });
       }
 
       case 'filter': {
         const status = searchParams.get('status');
-        const orders = await Order.findByCustomer(customerId);
-        const filtered = status 
-          ? orders.filter(o => o.status === status)
-          : orders;
+        const query = status ? { status } : {};
         
-        return NextResponse.json({ success: true, orders: filtered });
+        // Add customer filter if not admin
+        if (!isAdmin) {
+          query.customerId = customerId;
+        }
+        
+        const orders = await Order.find(query).sort({ orderDate: -1 });
+        const transformedOrders = orders.map(order => ({
+          ...order.toObject(),
+          displayId: order.displayId,
+          id: order._id.toString()
+        }));
+        
+        return NextResponse.json({ success: true, orders: transformedOrders });
       }
 
       default: {
-        const allOrders = await Order.findByCustomer(customerId);
-        return NextResponse.json({ success: true, orders: allOrders });
+        // Default: get all orders (admin gets all, customer gets only theirs)
+        let orders;
+        
+        if (isAdmin) {
+          orders = await Order.findAll();
+        } else {
+          orders = await Order.findByCustomer(customerId);
+        }
+        
+        const transformedOrders = orders.map(order => ({
+          ...order.toObject(),
+          displayId: order.displayId,
+          id: order._id.toString()
+        }));
+        
+        return NextResponse.json({ success: true, orders: transformedOrders });
       }
     }
   } catch (error) {
@@ -95,7 +135,7 @@ export async function GET(request) {
   }
 }
 
-// POST - Create new order
+// POST - Create new order (unchanged)
 export async function POST(request) {
   try {
     const session = await getServerSession(authOptions);
@@ -121,46 +161,37 @@ export async function POST(request) {
 
     // Get user data to access phone number
     const user = await User.findById(session.user.id);
-    const customerPhone = user?.phone || session.user.phone || '254700000000'; // Fallback
+    const customerPhone = user?.phone || session.user.phone || '254700000000';
 
-    // Create order data matching Order model schema exactly
+    // Create order data
     const orderData = {
-  // Customer Information
-  customerId: session.user.id,
-  customerName: session.user.name,
-  customerEmail: session.user.email,
-  customerPhone: customerPhone, // ✅ Added
+      customerId: session.user.id,
+      customerName: session.user.name,
+      customerEmail: session.user.email,
+      customerPhone: customerPhone,
+      
+      fuelType: body.fuelType,
+      fuelTypeName: body.fuelTypeName || body.fuelType.toUpperCase(),
+      quantity: body.quantity,
+      pricePerLiter: body.pricePerLiter || 0,
+      subtotal: body.subtotal || (body.quantity * body.pricePerLiter),
+      
+      deliveryAddress: body.deliveryAddress,
+      deliveryZone: body.deliveryZone || 'Zone A',
+      deliveryCost: body.deliveryCost || 0,
+      deliveryDate: body.deliveryDate,
+      deliveryTime: body.deliveryTime || 'morning',
+      
+      bulkDiscount: body.bulkDiscount || 0,
+      bulkDiscountAmount: body.bulkDiscountAmount || 0,
+      
+      totalCost: body.totalCost || body.subtotal + body.deliveryCost - body.bulkDiscountAmount,
+      
+      status: 'pending',
+      paymentMethod: body.paymentMethod || 'mpesa',
+      specialInstructions: body.specialInstructions || '',
+    };
 
-  // Order Details
-  fuelType: body.fuelType,
-  fuelTypeName: body.fuelTypeName || body.fuelType.toUpperCase(),
-  quantity: body.quantity,
-  pricePerLiter: body.pricePerLiter || 0,
-  subtotal: body.subtotal || (body.quantity * body.pricePerLiter),
-
-  // Delivery Information
-  deliveryAddress: body.deliveryAddress,
-  deliveryZone: body.deliveryZone || 'Zone A',
-  deliveryCost: body.deliveryCost || 0,
-  deliveryDate: body.deliveryDate,
-  deliveryTime: body.deliveryTime || 'morning', // ✅ Valid enum
-
-  // Discounts
-  bulkDiscount: body.bulkDiscount || 0,
-  bulkDiscountAmount: body.bulkDiscountAmount || 0,
-
-  // Total Cost
-  totalCost: body.totalCost || body.subtotal + body.deliveryCost - body.bulkDiscountAmount, // ✅ Changed from totalAmount
-
-  // Status
-  status: 'pending',
-  paymentMethod: body.paymentMethod || 'mpesa',
-
-  // Notes
-  specialInstructions: body.specialInstructions || '', // ✅ Changed from notes
-};
-
-    // Create order
     const order = new Order(orderData);
     await order.save();
 
@@ -176,7 +207,10 @@ export async function POST(request) {
 
     return NextResponse.json({
       success: true,
-      order: order,
+      order: {
+        ...order.toObject(),
+        displayId: order.displayId
+      },
       message: 'Order created successfully'
     });
   } catch (error) {
