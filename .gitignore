@@ -43,3 +43,4 @@ next-env.d.ts
 # Demo/seed files - contains sensitive data
 scripts/seedDatabase.js
 src/lib/db/initDemoUsers.js
+src/app/api/init-demo-users/route.js
