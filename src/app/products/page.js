@@ -1,9 +1,10 @@
 'use client';
-import { Fuel, Droplet, Zap, Leaf, Shield, Award, Clock, Truck, Package, CheckCircle, ArrowRight, TrendingUp, BarChart3, Calculator } from 'lucide-react';
+import { Fuel, Droplet, Zap, Leaf, Shield, Award, Clock, Truck, Package, CheckCircle, ArrowRight, TrendingUp, BarChart3, Calculator, X } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
 import PriceWidget from '@/components/PriceWidget';
 import InventoryStatus from '@/components/inventory/InventoryStatus';
+import OrderForm from '@/components/OrderForm';
 import { 
   PriceComparisonSection,
   SavingsCalculatorWidget,
@@ -14,6 +15,7 @@ import {
 export default function ProductsPage() {
   const [selectedProduct, setSelectedProduct] = useState('pms');
   const [showCalculator, setShowCalculator] = useState(false);
+  const [showOrderModal, setShowOrderModal] = useState(false);
 
   const products = {
     pms: {
@@ -76,6 +78,37 @@ export default function ProductsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-white">
+      {/* Order Modal */}
+      {showOrderModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden animate-scale-in">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-br from-primary-500 to-primary-600 p-6 text-white relative">
+              <button
+                onClick={() => setShowOrderModal(false)}
+                className="absolute top-4 right-4 w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                  <Package className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold">Request a Quote</h2>
+                  <p className="text-primary-100">Get competitive pricing for bulk fuel orders</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <OrderForm />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Compact Hero Section */}
       <section className="relative h-[400px] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-secondary-900 via-secondary-800 to-primary-900"></div>
@@ -186,13 +219,13 @@ export default function ProductsPage() {
                 <Calculator className="w-5 h-5" />
                 Calculator
               </Link>
-              <Link
-                href="/contact"
+              <button
+                onClick={() => setShowOrderModal(true)}
                 className="flex items-center justify-center gap-2 bg-secondary-500 text-white px-6 py-4 rounded-xl font-semibold hover:bg-secondary-600 transition-all shadow-lg hover:shadow-xl"
               >
                 <Package className="w-5 h-5" />
                 Order Now
-              </Link>
+              </button>
             </div>
           </div>
         </div>
@@ -311,13 +344,13 @@ export default function ProductsPage() {
             Get competitive pricing and reliable supply for your fuel needs
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
-            <Link
-              href="/contact"
+            <button
+              onClick={() => setShowOrderModal(true)}
               className="inline-flex items-center gap-2 bg-primary-500 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-primary-600 transition-all shadow-xl"
             >
               Request Quote
               <ArrowRight className="w-5 h-5" />
-            </Link>
+            </button>
             <Link
               href="/prices"
               className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md text-white border-2 border-white/30 px-8 py-4 rounded-xl text-lg font-semibold hover:bg-white/20 transition-all"
@@ -331,6 +364,30 @@ export default function ProductsPage() {
       <SavingsCalculatorWidget />
       <DeliveryZoneSelector />
       <ProductComparisonTable />
+
+      {/* Add animation styles */}
+      <style jsx>{`
+        @keyframes fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes scale-in {
+          from {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.2s ease-out;
+        }
+        .animate-scale-in {
+          animation: scale-in 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 }
