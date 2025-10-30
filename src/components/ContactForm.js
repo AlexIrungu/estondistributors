@@ -1,10 +1,10 @@
+// src/components/ContactForm.js
 'use client';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import emailjs from '@emailjs/browser';
 
 const contactSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -32,52 +32,30 @@ export default function ContactForm() {
     setSubmitStatus(null);
 
     try {
-      // EmailJS configuration
-      const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
-      const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
-      const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
-
-      // Debug: Check if environment variables are loaded
-      console.log('Environment Check:', {
-        serviceId: serviceId ? '✓ Loaded' : '✗ Missing',
-        templateId: templateId ? '✓ Loaded' : '✗ Missing',
-        publicKey: publicKey ? '✓ Loaded' : '✗ Missing',
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
       });
 
-      // Validate environment variables
-      if (!serviceId || !templateId || !publicKey) {
-        throw new Error('EmailJS configuration is missing. Please check your .env.local file and restart the development server.');
+      const result = await response.json();
+
+      if (response.ok) {
+        setSubmitStatus('success');
+        reset();
+        
+        // Auto-hide success message after 5 seconds
+        setTimeout(() => {
+          setSubmitStatus(null);
+        }, 5000);
+      } else {
+        throw new Error(result.error || 'Failed to send message');
       }
-
-      // Template parameters matching your EmailJS template
-      const templateParams = {
-        from_name: data.name,
-        from_email: data.email,
-        phone: data.phone,
-        subject: data.subject,
-        message: data.message,
-        to_email: 'estonkd@gmail.com', // Your receiving email
-      };
-
-      // Send email using EmailJS
-      const response = await emailjs.send(
-        serviceId,
-        templateId,
-        templateParams,
-        publicKey
-      );
-
-      console.log('Email sent successfully:', response);
-      setSubmitStatus('success');
-      reset();
-      
-      // Auto-hide success message after 5 seconds
-      setTimeout(() => {
-        setSubmitStatus(null);
-      }, 5000);
       
     } catch (error) {
-      console.error('Email sending failed:', error);
+      console.error('Contact form error:', error);
       setSubmitStatus('error');
       
       // Auto-hide error message after 5 seconds
@@ -202,25 +180,25 @@ export default function ContactForm() {
 
       {/* Status Messages */}
       {submitStatus === 'success' && (
-        <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg flex items-start gap-3">
+        <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg flex items-start gap-3 animate-fade-in">
           <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
           <div>
             <p className="font-semibold">Message sent successfully!</p>
-            <p className="text-sm mt-1">Thank you for contacting us. We'll get back to you within 24 hours.</p>
+            <p className="text-sm mt-1">Thank you for contacting us. Check your email for confirmation. We'll get back to you within 24 hours.</p>
           </div>
         </div>
       )}
 
       {submitStatus === 'error' && (
-        <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg flex items-start gap-3">
+        <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg flex items-start gap-3 animate-fade-in">
           <svg className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
           </svg>
           <div>
             <p className="font-semibold">Failed to send message</p>
-            <p className="text-sm mt-1">Please try again or contact us directly at estonkd@gmail.com</p>
+            <p className="text-sm mt-1">Please try again or contact us directly at estonkd@gmail.com or +254 722 943 291</p>
           </div>
         </div>
       )}
