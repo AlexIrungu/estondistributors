@@ -1,8 +1,8 @@
-// next.config.mjs - MERGED & OPTIMIZED FOR SEO + YOUR EXISTING CONFIG
+// next.config.mjs - FIXED FOR NEXT.JS 16 TURBOPACK
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // ✅ Image Optimization - Merged with your existing config
+  // ✅ Image Optimization
   images: {
     formats: ['image/webp', 'image/avif'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
@@ -27,7 +27,7 @@ const nextConfig = {
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 
-  // ✅ Environment Variables - Your existing config
+  // ✅ Environment Variables
   env: {
     NEXT_PUBLIC_EMAILJS_SERVICE_ID: process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID,
     NEXT_PUBLIC_EMAILJS_TEMPLATE_ID: process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID,
@@ -105,7 +105,7 @@ const nextConfig = {
     ]
   },
 
-  // ✅ Redirects (add any URL redirects here if needed)
+  // ✅ Redirects
   async redirects() {
     return [
       // Example: redirect old URLs to new ones
@@ -123,41 +123,10 @@ const nextConfig = {
     optimizePackageImports: ['lucide-react', 'recharts', 'react-leaflet'],
   },
 
-  // ✅ Webpack optimizations
-  webpack: (config, { dev, isServer }) => {
-    // Production optimizations
-    if (!dev && !isServer) {
-      config.optimization = {
-        ...config.optimization,
-        moduleIds: 'deterministic',
-        runtimeChunk: 'single',
-        splitChunks: {
-          chunks: 'all',
-          cacheGroups: {
-            default: false,
-            vendors: false,
-            // Vendor chunk
-            vendor: {
-              name: 'vendor',
-              chunks: 'all',
-              test: /node_modules/,
-              priority: 20
-            },
-            // Common chunk
-            common: {
-              name: 'common',
-              minChunks: 2,
-              chunks: 'all',
-              priority: 10,
-              reuseExistingChunk: true,
-              enforce: true
-            }
-          }
-        }
-      };
-    }
-    return config;
-  },
+  // ✅ TURBOPACK CONFIG - Silences the warning
+  // Turbopack handles code splitting and optimization automatically
+  // Most webpack optimizations are not needed with Turbopack
+  turbopack: {},
 };
 
 export default nextConfig;
