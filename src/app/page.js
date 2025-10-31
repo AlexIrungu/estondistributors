@@ -1,3 +1,41 @@
+// ✅ HOMEPAGE SEO METADATA
+export const metadata = {
+  title: 'Home - Premium Fuel Distribution & Transport Services in Kenya',
+  description: 'Eston Distributors offers competitive fuel prices in Nairobi. EPRA licensed distributor of petrol, diesel, and kerosene with 24/7 delivery, fleet management, and real-time pricing. Order bulk fuel today.',
+  keywords: [
+    'fuel prices Nairobi today',
+    'diesel price Kenya',
+    'petrol price today',
+    'fuel distributor near me',
+    'bulk diesel supplier Kenya',
+    'kerosene prices Nairobi',
+    'EPRA fuel prices',
+    'fuel delivery Nairobi',
+    'wholesale petrol Kenya'
+  ],
+  openGraph: {
+    title: 'Eston Distributors - Kenya\'s Trusted Fuel Distribution Partner',
+    description: 'Quality petroleum products with competitive prices. Real-time EPRA pricing, bulk discounts, and reliable delivery across Nairobi.',
+    url: 'https://estondistributors.vercel.app',
+    images: [
+      {
+        url: '/og-home.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'Eston Distributors - Fuel Distribution Kenya'
+      }
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Eston Distributors - Premium Fuel Distribution Kenya',
+    description: 'Real-time fuel prices, bulk discounts, and reliable delivery across Nairobi.',
+    images: ['/twitter-home.jpg'],
+  },
+  alternates: {
+    canonical: 'https://estondistributors.vercel.app',
+  },
+};
 // src/app/page.js - OPTIMIZED VERSION
 import Link from 'next/link';
 import Image from 'next/image';
@@ -7,6 +45,115 @@ import {
   Zap, Star, TrendingUp, Calculator, Bell, Package,
   ArrowRight, CheckCircle, BarChart3, Fuel
 } from 'lucide-react';
+
+export function generateStructuredData() {
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      // LocalBusiness Schema
+      {
+        "@type": "LocalBusiness",
+        "@id": "https://estondistributors.vercel.app/#business",
+        "name": "Eston Distributors",
+        "description": "Leading fuel distributor in Kenya specializing in petrol, diesel, and kerosene distribution with transport services.",
+        "url": "https://estondistributors.vercel.app",
+        "telephone": "+254-XXX-XXXXX", // Add your phone
+        "email": "info@estondistributors.com", // Add your email
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "Your Street Address", // Add your address
+          "addressLocality": "Nairobi",
+          "addressRegion": "Nairobi County",
+          "postalCode": "00100", // Add your postal code
+          "addressCountry": "KE"
+        },
+        "geo": {
+          "@type": "GeoCoordinates",
+          "latitude": "-1.286389",
+          "longitude": "36.817223"
+        },
+        "openingHoursSpecification": {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday"
+          ],
+          "opens": "00:00",
+          "closes": "23:59"
+        },
+        "priceRange": "$$",
+        "areaServed": {
+          "@type": "State",
+          "name": "Kenya"
+        }
+      },
+      // Service Schema
+      {
+        "@type": "Service",
+        "@id": "https://estondistributors.vercel.app/#service",
+        "serviceType": "Petroleum Product Distribution",
+        "provider": {
+          "@id": "https://estondistributors.vercel.app/#business"
+        },
+        "areaServed": {
+          "@type": "Country",
+          "name": "Kenya"
+        },
+        "hasOfferCatalog": {
+          "@type": "OfferCatalog",
+          "name": "Petroleum Products",
+          "itemListElement": [
+            {
+              "@type": "Offer",
+              "itemOffered": {
+                "@type": "Product",
+                "name": "Premium Petrol (PMS)",
+                "description": "High-quality unleaded petrol"
+              }
+            },
+            {
+              "@type": "Offer",
+              "itemOffered": {
+                "@type": "Product",
+                "name": "Diesel (AGO)",
+                "description": "Reliable diesel fuel for heavy-duty vehicles"
+              }
+            },
+            {
+              "@type": "Offer",
+              "itemOffered": {
+                "@type": "Product",
+                "name": "Kerosene (IK)",
+                "description": "Clean-burning illuminating kerosene"
+              }
+            }
+          ]
+        }
+      },
+      // WebSite Schema
+      {
+        "@type": "WebSite",
+        "@id": "https://estondistributors.vercel.app/#website",
+        "url": "https://estondistributors.vercel.app",
+        "name": "Eston Distributors",
+        "description": "Premium fuel distribution and transport services in Kenya",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://estondistributors.vercel.app/search?q={search_term_string}"
+          },
+          "query-input": "required name=search_term_string"
+        }
+      }
+    ]
+  };
+}
 
 // ✅ OPTIMIZATION 1: Lazy load heavy components with dynamic imports
 // These components are client-side only since they fetch data
@@ -549,8 +696,16 @@ function CTASection() {
 
 // ✅ OPTIMIZATION 5: Main component with sections split
 export default function Home() {
+  const structuredData = generateStructuredData();
+
   return (
     <div className="overflow-hidden">
+      {/* ✅ Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      
       <LowStockAlert variant="banner" />
       <HeroSection />
       <ToolsSection />
